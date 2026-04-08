@@ -19,17 +19,17 @@ const s3Client = new S3Client({
 });
 const bucket = process.env.S3_BUCKET!;
 
-export async function startPreviewWorker() {
-  console.log(`Starting preview worker for queue: ${QUEUE_NAME}`);
+export async function startFinalGenerationWorker() {
+  console.log(`Starting final generation worker for queue: ${QUEUE_NAME}`);
 
   const worker = new Worker(QUEUE_NAME, async (job: Job) => {
-    // Only process preview generation jobs
-    if (job.name !== 'generate-preview') {
+    // Only process final generation jobs
+    if (job.name !== 'generate-final') {
       return;
     }
 
     const { templateId, versionId, caseId, documentId } = job.data;
-    console.log(`Generating preview for document: ${documentId}`);
+    console.log(`Generating final document: ${documentId}`);
 
     try {
       // 1. Update status to PROCESSING
@@ -70,11 +70,11 @@ export async function startPreviewWorker() {
       doc.render(caseData);
       const outputBuffer = doc.getZip().generate({ type: 'nodebuffer' });
 
-      // 5. Save preview to S3
-      const previewKey = `previews/${documentId}.docx`;
+      // 5. Save final document to S3
+      const documentKey = `documents/${documentId}.docx`;
       await s3Client.send(new PutObjectCommand({
         Bucket: bucket,
-        Key: previewKey,
+        Key: documentKey,
         Body: outputBuffer,
         ContentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       }));
@@ -84,14 +84,14 @@ export async function startPreviewWorker() {
         where: { id: documentId },
         data: {
           status: DocumentStatus.COMPLETED,
-          storagePath: previewKey,
+          storagePath: documentKey,
           completedAt: new Date(),
         },
       });
 
-      console.log(`Preview generated successfully for document: ${documentId}`);
+      console.log(`Final document generated successfully: ${documentId}`);
     } catch (error) {
-      console.error(`Preview generation failed for document: ${documentId}`, error);
+      console.error(`Final generation failed for document: ${documentId}`, error);
       try {
         await prisma.generatedDocument.update({
           where: { id: documentId },
@@ -112,11 +112,11 @@ export async function startPreviewWorker() {
   });
 
   worker.on('completed', (job) => {
-    console.log(`Preview job ${job.id} completed`);
+    console.log(`Final generation job ${job.id} completed`);
   });
 
   worker.on('failed', (job, err) => {
-    console.error(`Preview job ${job?.id} failed: ${err.message}`);
+    console.error(`Final generation job ${job?.id} failed: ${err.message}`);
   });
 
   return worker;

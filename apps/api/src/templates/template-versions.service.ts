@@ -150,6 +150,50 @@ export class TemplateVersionsService {
     });
   }
 
+  async generateFinal(templateId: string, versionId: string, caseId: string, actorId: string) {
+    const version = await this.findById(templateId, versionId);
+
+    // 1. Verify version is ready for generation
+    if (!version.storagePath) {
+      throw new BadRequestException('Template version has no file uploaded');
+    }
+
+    if (version.validationStatus !== ValidationStatus.VALID) {
+      throw new BadRequestException(`Template version is not in a valid state (current: ${version.validationStatus})`);
+    }
+
+    // 2. Verify version is PUBLISHED and is the current published version of the template
+    if (version.status !== TemplateVersionStatus.PUBLISHED) {
+      throw new BadRequestException('Only published versions can be used for final generation');
+    }
+
+    if (version.template.publishedVersionId !== versionId) {
+      throw new BadRequestException('This version is not the current published version for this template');
+    }
+
+    // 3. Verify case exists
+    await this.casesService.getCaseData(caseId);
+
+    // 4. Create GeneratedDocument record and enqueue job
+    return this.prisma.$transaction(async (tx) => {
+      const doc = await tx.generatedDocument.create({
+        data: {
+          templateId,
+          templateVersionId: versionId,
+          caseId,
+          requestedById: actorId,
+          generationType: GenerationType.FINAL,
+          outputFormat: OutputFormat.DOCX,
+          status: DocumentStatus.QUEUED,
+        },
+      });
+
+      await this.generationQueue.enqueueFinal(templateId, versionId, caseId, doc.id);
+
+      return doc;
+    });
+  }
+
   async publish(templateId: string, versionId: string) {
     const version = await this.findById(templateId, versionId);
 

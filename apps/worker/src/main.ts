@@ -2,6 +2,7 @@ import { QUEUE_NAME, TEMPLATE_VALIDATION_QUEUE } from '@app/shared';
 import 'dotenv/config';
 import { startTemplateValidationWorker } from './template-validation.processor';
 import { startPreviewWorker } from './preview.processor';
+import { startFinalGenerationWorker } from './final-generation.processor';
 
 async function startWorker() {
   console.log('Starting workers...');
@@ -12,8 +13,11 @@ async function startWorker() {
   // Start preview generation worker
   const previewWorker = await startPreviewWorker();
 
+  // Start final generation worker
+  const finalWorker = await startFinalGenerationWorker();
+
   console.log('Workers are running...');
-  return { validationWorker, previewWorker };
+  return { validationWorker, previewWorker, finalWorker };
 }
 
 startWorker().catch(err => {

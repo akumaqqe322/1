@@ -1,11 +1,4 @@
-export interface CaseData {
-  id: string;
-  clientName: string;
-  caseNumber: string;
-  courtName: string;
-  filingDate: string;
-  description: string;
-}
+import { CaseData } from '@app/shared';
 
 export class CasesService {
   private readonly mockCases: CaseData[] = [

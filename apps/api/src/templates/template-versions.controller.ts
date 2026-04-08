@@ -3,6 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { TemplateVersionsService } from './template-versions.service';
 import { CreateTemplateVersionDto } from './dto/create-template-version.dto';
 import { GeneratePreviewDto } from './dto/generate-preview.dto';
+import { GenerateFinalDto } from './dto/generate-final.dto';
 
 const SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000000';
 
@@ -56,6 +57,15 @@ export class TemplateVersionsController {
     @Body() dto: GeneratePreviewDto,
   ) {
     return this.versionsService.generatePreview(templateId, versionId, dto.caseId, SYSTEM_ACTOR_ID);
+  }
+
+  @Post(':versionId/generate')
+  generateFinal(
+    @Param('templateId') templateId: string,
+    @Param('versionId') versionId: string,
+    @Body() dto: GenerateFinalDto,
+  ) {
+    return this.versionsService.generateFinal(templateId, versionId, dto.caseId, SYSTEM_ACTOR_ID);
   }
 
   @Post(':versionId/publish')

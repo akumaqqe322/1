@@ -24,5 +24,14 @@ export interface DocumentMetadata {
   updatedAt: string;
 }
 
+export interface CaseData {
+  id: string;
+  clientName: string;
+  caseNumber: string;
+  courtName: string;
+  filingDate: string;
+  description: string;
+}
+
 export const QUEUE_NAME = 'document-generation';
 export const TEMPLATE_VALIDATION_QUEUE = 'template-validation';

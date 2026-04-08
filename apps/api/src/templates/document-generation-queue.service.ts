@@ -28,4 +28,24 @@ export class DocumentGenerationQueueService {
       },
     );
   }
+
+  async enqueueFinal(templateId: string, versionId: string, caseId: string, documentId: string) {
+    await this.generationQueue.add(
+      DocumentGenerationJob.FINAL,
+      {
+        templateId,
+        versionId,
+        caseId,
+        documentId,
+      },
+      {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+        removeOnComplete: true,
+      },
+    );
+  }
 }

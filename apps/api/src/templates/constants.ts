@@ -12,4 +12,5 @@ export enum TemplateValidationJob {
 
 export enum DocumentGenerationJob {
   PREVIEW = 'generate-preview',
+  FINAL = 'generate-final',
 }
