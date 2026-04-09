@@ -37,6 +37,8 @@ services:
     image: minio/minio
     container_name: cassatix-storage
     restart: unless-stopped
+    # Note: You must manually create the bucket defined in S3_BUCKET (default: 'documents') 
+    # via the console at http://localhost:9001 after starting the service.
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
