@@ -4,6 +4,7 @@ import {
   useTemplate, 
   useTemplateVersions, 
   useGeneratePreview, 
+  useGenerateFinal,
   useGeneratedDocument 
 } from "../hooks/useTemplate";
 import { 
@@ -65,6 +66,9 @@ export default function TemplateDetails() {
   const { data: versions, isLoading: isVersionsLoading } = useTemplateVersions(templateId);
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const { data: activeDoc } = useGeneratedDocument(activeDocId || undefined);
+  
+  const [activeFinalDocId, setActiveFinalDocId] = useState<string | null>(null);
+  const { data: activeFinalDoc } = useGeneratedDocument(activeFinalDocId || undefined);
 
   // Clear active doc if it's finished and user closes a notification or something
   // For now, we just keep it to show the status
@@ -338,6 +342,14 @@ export default function TemplateDetails() {
                               activeDocId={activeDocId}
                               activeDoc={activeDoc}
                             />
+                            <FinalAction 
+                              templateId={templateId!} 
+                              template={template}
+                              version={version} 
+                              onSuccess={(docId) => setActiveFinalDocId(docId)}
+                              activeDocId={activeFinalDocId}
+                              activeDoc={activeFinalDoc}
+                            />
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-900">
                               <ExternalLink className="h-3.5 w-3.5" />
                             </Button>
@@ -481,6 +493,137 @@ function PreviewAction({ templateId, version, onSuccess, activeDocId, activeDoc 
               </>
             ) : (
               "Generate Preview"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface FinalActionProps {
+  templateId: string;
+  template: any;
+  version: TemplateVersion;
+  onSuccess: (docId: string) => void;
+  activeDocId: string | null;
+  activeDoc: any;
+}
+
+function FinalAction({ templateId, template, version, onSuccess, activeDocId, activeDoc }: FinalActionProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [caseId, setCaseId] = useState("");
+  const generateFinal = useGenerateFinal();
+
+  const isThisVersionActive = activeDocId && activeDoc?.templateVersionId === version.id;
+
+  const handleRequest = async () => {
+    if (!caseId) return;
+    try {
+      const doc = await generateFinal.mutateAsync({
+        templateId,
+        versionId: version.id,
+        caseId,
+      });
+      onSuccess(doc.id);
+      setIsOpen(false);
+    } catch (error) {
+      console.error("Failed to request final generation", error);
+    }
+  };
+
+  const isPublished = version.status === TemplateVersionStatus.PUBLISHED && template.publishedVersionId === version.id;
+  const canGenerate = isPublished && version.storagePath && version.validationStatus === ValidationStatus.VALID;
+
+  if (isThisVersionActive && activeDoc) {
+    return (
+      <div className="flex items-center gap-2 px-2 py-1 bg-purple-50 rounded-md border border-purple-200">
+        <div className="flex items-center gap-1.5">
+          {activeDoc.status === DocumentStatus.COMPLETED ? (
+            <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+          ) : activeDoc.status === DocumentStatus.FAILED ? (
+            <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+          ) : (
+            <Loader2 className="h-3.5 w-3.5 text-purple-500 animate-spin" />
+          )}
+          <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700">
+            Final: {activeDoc.status}
+          </span>
+        </div>
+        {activeDoc.status === DocumentStatus.COMPLETED && activeDoc.storagePath && (
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-purple-600" asChild>
+            <a href={`/api/documents/${activeDoc.id}/download`} target="_blank" rel="noreferrer">
+              <Download className="h-3 w-3" />
+            </a>
+          </Button>
+        )}
+        {activeDoc.status === DocumentStatus.FAILED && activeDoc.errorMessage && (
+          <div className="group relative">
+            <AlertCircle className="h-3.5 w-3.5 text-red-400 cursor-help" />
+            <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block w-48 p-2 bg-white border border-red-100 rounded shadow-lg text-[10px] text-red-600 z-50">
+              {activeDoc.errorMessage}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (!isPublished) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button 
+          variant="default" 
+          size="sm" 
+          className="h-8 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white"
+          disabled={!canGenerate}
+        >
+          <CheckCircle2 className="mr-2 h-3.5 w-3.5" />
+          Final Generation
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Request Final Generation</DialogTitle>
+          <DialogDescription>
+            Generate the final document for v{version.versionNumber}. This action is logged and intended for production use.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="caseId" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+              Case ID
+            </Label>
+            <Input
+              id="caseId"
+              placeholder="e.g. CASE-2024-001"
+              value={caseId}
+              onChange={(e) => setCaseId(e.target.value)}
+              className="bg-gray-50/50"
+            />
+            <p className="text-[10px] text-gray-400">
+              Enter the official Case ID from Cassatix.
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setIsOpen(false)} disabled={generateFinal.isPending}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleRequest} 
+            disabled={!caseId || generateFinal.isPending}
+            className="bg-purple-600 text-white hover:bg-purple-700"
+          >
+            {generateFinal.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              "Generate Final Document"
             )}
           </Button>
         </DialogFooter>

@@ -36,6 +36,15 @@ export const useGeneratePreview = () => {
   });
 };
 
+export const useGenerateFinal = () => {
+  return useMutation({
+    mutationFn: async ({ templateId, versionId, caseId }: { templateId: string; versionId: string; caseId: string }) => {
+      const { data } = await api.post<GeneratedDocument>(`/templates/${templateId}/versions/${versionId}/generate`, { caseId });
+      return data;
+    },
+  });
+};
+
 export const useGeneratedDocument = (id: string | undefined) => {
   return useQuery({
     queryKey: ['documents', id],
