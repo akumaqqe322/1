@@ -9,12 +9,14 @@ import { TemplatesController } from './templates.controller';
 import { TemplateVersionsController } from './template-versions.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { StorageModule } from '../storage/storage.module';
+import { AuditModule } from '../audit/audit.module';
 import { TEMPLATE_VALIDATION_QUEUE, DOCUMENT_GENERATION_QUEUE } from './constants';
 
 @Module({
   imports: [
     PrismaModule,
     StorageModule,
+    AuditModule,
     BullModule.registerQueue(
       { name: TEMPLATE_VALIDATION_QUEUE },
       { name: DOCUMENT_GENERATION_QUEUE },

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { UserRole } from "../types/auth";
@@ -7,7 +7,11 @@ import {
   useTemplateVersions, 
   useGeneratePreview, 
   useGenerateFinal,
-  useGeneratedDocument 
+  useGeneratedDocument,
+  useUploadTemplateFile,
+  useCreateTemplateVersion,
+  usePublishVersion,
+  useArchiveVersion
 } from "../hooks/useTemplate";
 import { 
   TemplateStatus, 
@@ -20,6 +24,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -59,7 +64,11 @@ import {
   Clock,
   ExternalLink,
   Loader2,
-  Download
+  Download,
+  Upload,
+  Plus,
+  Rocket,
+  Archive
 } from "lucide-react";
 import { cn } from "../lib/utils";
 
@@ -73,10 +82,7 @@ export default function TemplateDetails() {
   
   const [activeFinalDocId, setActiveFinalDocId] = useState<string | null>(null);
   const { data: activeFinalDoc } = useGeneratedDocument(activeFinalDocId || undefined);
-
-  // Clear active doc if it's finished and user closes a notification or something
-  // For now, we just keep it to show the status
-
+  
   if (isTemplateLoading) {
     return (
       <PageState 
@@ -255,6 +261,7 @@ export default function TemplateDetails() {
                   </CardTitle>
                   <CardDescription>Complete audit trail of all template versions.</CardDescription>
                 </div>
+                <CreateVersionDialog templateId={templateId!} userRole={user?.role} />
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -277,63 +284,93 @@ export default function TemplateDetails() {
                       <TableHead className="text-right text-xs font-semibold uppercase tracking-wider">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
-                    {versions.sort((a, b) => b.versionNumber - a.versionNumber).map((version) => (
-                      <TableRow key={version.id} className="group">
-                        <TableCell className="font-mono font-bold text-gray-900">
-                          v{version.versionNumber}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={version.status} type="version" />
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate text-sm text-gray-600">
-                          {version.fileName || <span className="text-gray-400 italic">No file uploaded</span>}
-                        </TableCell>
-                        <TableCell>
-                          {version.validationStatus ? (
-                            <StatusBadge status={version.validationStatus} type="validation" showIcon />
-                          ) : (
-                            <span className="text-xs text-gray-400">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="text-xs text-gray-700">{new Date(version.createdAt).toLocaleDateString()}</span>
-                            <span className="text-[10px] text-gray-400">{new Date(version.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="max-w-[250px]">
-                          <p className="text-xs text-gray-500 truncate italic">
-                            {version.changelog || "No changelog provided"}
-                          </p>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <PreviewAction 
-                              templateId={templateId!} 
-                              version={version} 
-                              userRole={user?.role}
-                              onSuccess={(docId) => setActiveDocId(docId)}
-                              activeDocId={activeDocId}
-                              activeDoc={activeDoc}
-                            />
-                            <FinalAction 
-                              templateId={templateId!} 
-                              template={template}
-                              version={version} 
-                              userRole={user?.role}
-                              onSuccess={(docId) => setActiveFinalDocId(docId)}
-                              activeDocId={activeFinalDocId}
-                              activeDoc={activeFinalDoc}
-                            />
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-900" title="View External Reference">
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
+                    <TableBody>
+                      {versions.sort((a, b) => b.versionNumber - a.versionNumber).map((version) => {
+                        const isPublished = template.publishedVersionId === version.id;
+                        
+                        return (
+                          <TableRow 
+                            key={version.id} 
+                            className={cn(
+                              "group",
+                              isPublished && "bg-green-50/30 hover:bg-green-50/50"
+                            )}
+                          >
+                            <TableCell className="font-mono font-bold text-gray-900">
+                              <div className="flex items-center gap-2">
+                                v{version.versionNumber}
+                                {isPublished && (
+                                  <Badge className="bg-green-600 text-white border-none text-[8px] h-4 px-1">LIVE</Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <StatusBadge status={version.status} type="version" />
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate text-sm text-gray-600">
+                              {version.fileName || <span className="text-gray-400 italic">No file uploaded</span>}
+                            </TableCell>
+                            <TableCell>
+                              {version.validationStatus ? (
+                                <StatusBadge status={version.validationStatus} type="validation" showIcon />
+                              ) : (
+                                <span className="text-xs text-gray-400">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="text-xs text-gray-700">{new Date(version.createdAt).toLocaleDateString()}</span>
+                                <span className="text-[10px] text-gray-400">{new Date(version.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-[250px]">
+                              <p className="text-xs text-gray-500 truncate italic">
+                                {version.changelog || "No changelog provided"}
+                              </p>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <UploadAction 
+                                  templateId={templateId!} 
+                                  version={version} 
+                                  userRole={user?.role}
+                                />
+                                <PublishAction 
+                                  templateId={templateId!} 
+                                  version={version} 
+                                  userRole={user?.role}
+                                />
+                                <ArchiveAction 
+                                  templateId={templateId!} 
+                                  version={version} 
+                                  userRole={user?.role}
+                                />
+                                <PreviewAction 
+                                  templateId={templateId!} 
+                                  version={version} 
+                                  userRole={user?.role}
+                                  onSuccess={(docId) => setActiveDocId(docId)}
+                                  activeDocId={activeDocId}
+                                  activeDoc={activeDoc}
+                                />
+                                <FinalAction 
+                                  templateId={templateId!} 
+                                  template={template}
+                                  version={version} 
+                                  userRole={user?.role}
+                                  onSuccess={(docId) => setActiveFinalDocId(docId)}
+                                  activeDocId={activeFinalDocId}
+                                  activeDoc={activeFinalDoc}
+                                />
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-900" title="View External Reference">
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
                 </Table>
               ) : (
                 <PageState 
@@ -390,24 +427,32 @@ function PreviewAction({ templateId, version, userRole, onSuccess, activeDocId, 
   // If not authorized to trigger, but there is an active doc, we still show the status
   if (isThisVersionActive && activeDoc) {
     return (
-      <StatusBadge 
-        status={activeDoc.status} 
-        type="document" 
-        showIcon 
-        label="Preview"
-        className="px-2 py-1 bg-gray-50 rounded-md border border-gray-200"
-      >
-        {activeDoc.status === DocumentStatus.COMPLETED && activeDoc.storagePath && (
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-600" asChild title="Download Preview">
-            <a href={`/api/documents/${activeDoc.id}/download`} target="_blank" rel="noreferrer">
-              <Download className="h-3 w-3" />
-            </a>
-          </Button>
-        )}
-        {activeDoc.status === DocumentStatus.FAILED && activeDoc.errorMessage && (
-          <AlertCircle className="h-3.5 w-3.5 text-red-400 cursor-help" title={activeDoc.errorMessage} />
-        )}
-      </StatusBadge>
+      <div className="flex flex-col items-end gap-1">
+        <StatusBadge 
+          status={activeDoc.status} 
+          type="document" 
+          showIcon 
+          label="Preview"
+          className="px-2 py-1 bg-gray-50 rounded-md border border-gray-200"
+        >
+          {activeDoc.status === DocumentStatus.COMPLETED && activeDoc.storagePath && (
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-600" asChild title="Download Preview">
+              <a href={`/api/documents/${activeDoc.id}/download`} target="_blank" rel="noreferrer">
+                <Download className="h-3 w-3" />
+              </a>
+            </Button>
+          )}
+          {activeDoc.status === DocumentStatus.FAILED && activeDoc.errorMessage && (
+            <AlertCircle className="h-3.5 w-3.5 text-red-400 cursor-help" title={activeDoc.errorMessage} />
+          )}
+        </StatusBadge>
+        <div className="flex flex-col items-end text-[10px] text-gray-400">
+          <span className="font-medium text-gray-500">Case: {activeDoc.caseId}</span>
+          {activeDoc.completedAt && (
+            <span>Generated: {new Date(activeDoc.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          )}
+        </div>
+      </div>
     );
   }
 
@@ -422,7 +467,7 @@ function PreviewAction({ templateId, version, userRole, onSuccess, activeDocId, 
           size="sm" 
           className="h-8 text-xs font-semibold"
           disabled={!canPreview}
-          title={!hasFile ? "No file uploaded" : !isValid ? `Validation: ${version.validationStatus || 'Pending'}` : ""}
+          title={!hasFile ? "No file uploaded" : !isValid ? `Validation: ${version.validationStatus || 'Pending'}` : "Request Preview"}
         >
           <FileText className="mr-2 h-3.5 w-3.5" />
           Preview
@@ -432,7 +477,7 @@ function PreviewAction({ templateId, version, userRole, onSuccess, activeDocId, 
         <DialogHeader>
           <DialogTitle>Request Preview</DialogTitle>
           <DialogDescription>
-            Generate a preview document for v{version.versionNumber} using case data.
+            Generate a preview document for v{version.versionNumber} using case data from Cassatix.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -448,7 +493,7 @@ function PreviewAction({ templateId, version, userRole, onSuccess, activeDocId, 
               className="bg-gray-50/50"
             />
             <p className="text-[10px] text-gray-400">
-              Enter a valid Case ID from Cassatix to populate the template variables.
+              Enter a valid Case ID to populate the template variables.
             </p>
           </div>
         </div>
@@ -516,24 +561,32 @@ function FinalAction({ templateId, template, version, userRole, onSuccess, activ
 
   if (isThisVersionActive && activeDoc) {
     return (
-      <StatusBadge 
-        status={activeDoc.status} 
-        type="document" 
-        showIcon 
-        label="Final"
-        className="px-2 py-1 bg-purple-50 rounded-md border border-purple-200"
-      >
-        {activeDoc.status === DocumentStatus.COMPLETED && activeDoc.storagePath && (
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-purple-600" asChild title="Download Final Document">
-            <a href={`/api/documents/${activeDoc.id}/download`} target="_blank" rel="noreferrer">
-              <Download className="h-3 w-3" />
-            </a>
-          </Button>
-        )}
-        {activeDoc.status === DocumentStatus.FAILED && activeDoc.errorMessage && (
-          <AlertCircle className="h-3.5 w-3.5 text-red-400 cursor-help" title={activeDoc.errorMessage} />
-        )}
-      </StatusBadge>
+      <div className="flex flex-col items-end gap-1">
+        <StatusBadge 
+          status={activeDoc.status} 
+          type="document" 
+          showIcon 
+          label="Final"
+          className="px-2 py-1 bg-purple-50 rounded-md border border-purple-200"
+        >
+          {activeDoc.status === DocumentStatus.COMPLETED && activeDoc.storagePath && (
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-purple-600" asChild title="Download Final Document">
+              <a href={`/api/documents/${activeDoc.id}/download`} target="_blank" rel="noreferrer">
+                <Download className="h-3 w-3" />
+              </a>
+            </Button>
+          )}
+          {activeDoc.status === DocumentStatus.FAILED && activeDoc.errorMessage && (
+            <AlertCircle className="h-3.5 w-3.5 text-red-400 cursor-help" title={activeDoc.errorMessage} />
+          )}
+        </StatusBadge>
+        <div className="flex flex-col items-end text-[10px] text-gray-400">
+          <span className="font-medium text-gray-500">Case: {activeDoc.caseId}</span>
+          {activeDoc.completedAt && (
+            <span>Generated: {new Date(activeDoc.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          )}
+        </div>
+      </div>
     );
   }
 
@@ -548,10 +601,10 @@ function FinalAction({ templateId, template, version, userRole, onSuccess, activ
           size="sm" 
           className="h-8 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white"
           disabled={!canGenerate}
-          title={!hasFile ? "No file uploaded" : !isValid ? `Validation: ${version.validationStatus || 'Pending'}` : ""}
+          title={!hasFile ? "No file uploaded" : !isValid ? `Validation: ${version.validationStatus || 'Pending'}` : "Request Final Generation"}
         >
           <CheckCircle2 className="mr-2 h-3.5 w-3.5" />
-          Final Generation
+          Final
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
@@ -594,6 +647,403 @@ function FinalAction({ templateId, template, version, userRole, onSuccess, activ
               </>
             ) : (
               "Generate Final Document"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface UploadActionProps {
+  templateId: string;
+  version: TemplateVersion;
+  userRole?: UserRole;
+}
+
+function UploadAction({ templateId, version, userRole }: UploadActionProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const uploadFile = useUploadTemplateFile();
+  const { refetch: refetchVersions } = useTemplateVersions(templateId);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      if (selectedFile.name.endsWith('.docx')) {
+        setFile(selectedFile);
+      } else {
+        alert("Please select a .docx file");
+        e.target.value = "";
+      }
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!file) return;
+    try {
+      await uploadFile.mutateAsync({
+        templateId,
+        versionId: version.id,
+        file,
+      });
+      await refetchVersions();
+      setIsOpen(false);
+      setFile(null);
+    } catch (error) {
+      console.error("Failed to upload file", error);
+    }
+  };
+
+  const isAuthorized = userRole === UserRole.ADMIN || userRole === UserRole.LAWYER;
+  const isArchived = version.status === TemplateVersionStatus.ARCHIVED;
+  const canUpload = isAuthorized && !isArchived;
+
+  if (!canUpload) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button 
+          variant="outline" 
+          size="icon" 
+          className="h-8 w-8 text-gray-400 hover:text-gray-900"
+          title="Upload Template File (.docx)"
+        >
+          <Upload className="h-3.5 w-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Upload Template File</DialogTitle>
+          <DialogDescription>
+            Upload a Microsoft Word (.docx) file for v{version.versionNumber}.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="file" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+              Select DOCX File
+            </Label>
+            <Input
+              id="file"
+              type="file"
+              accept=".docx"
+              onChange={handleFileChange}
+              className="bg-gray-50/50"
+            />
+            {file && (
+              <p className="text-xs text-green-600 flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                {file.name} selected
+              </p>
+            )}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setIsOpen(false)} disabled={uploadFile.isPending}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleUpload} 
+            disabled={!file || uploadFile.isPending}
+            className="bg-gray-900 text-white hover:bg-gray-800"
+          >
+            {uploadFile.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              "Upload File"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface CreateVersionDialogProps {
+  templateId: string;
+  userRole?: UserRole;
+}
+
+function CreateVersionDialog({ templateId, userRole }: CreateVersionDialogProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [changelog, setChangelog] = useState("");
+  const [variablesSchema, setVariablesSchema] = useState("");
+  const [conditionsSchema, setConditionsSchema] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  
+  const createVersion = useCreateTemplateVersion();
+  const { refetch: refetchVersions } = useTemplateVersions(templateId);
+
+  const handleCreate = async () => {
+    setError(null);
+    
+    let variablesJson = undefined;
+    let conditionsJson = undefined;
+
+    try {
+      if (variablesSchema.trim()) {
+        variablesJson = JSON.parse(variablesSchema);
+      }
+    } catch (e) {
+      setError("Invalid JSON in Variables Schema");
+      return;
+    }
+
+    try {
+      if (conditionsSchema.trim()) {
+        conditionsJson = JSON.parse(conditionsSchema);
+      }
+    } catch (e) {
+      setError("Invalid JSON in Conditions Schema");
+      return;
+    }
+
+    try {
+      await createVersion.mutateAsync({
+        templateId,
+        changelog,
+        variablesSchemaJson: variablesJson,
+        conditionsSchemaJson: conditionsJson,
+      });
+      await refetchVersions();
+      setIsOpen(false);
+      setChangelog("");
+      setVariablesSchema("");
+      setConditionsSchema("");
+    } catch (error) {
+      console.error("Failed to create version", error);
+      setError("Failed to create version. Please check your inputs.");
+    }
+  };
+
+  const isAuthorized = userRole === UserRole.ADMIN || userRole === UserRole.LAWYER;
+  if (!isAuthorized) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" className="bg-gray-900 text-white hover:bg-gray-800">
+          <Plus className="mr-2 h-4 w-4" />
+          Create Version
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Create New Version</DialogTitle>
+          <DialogDescription>
+            Define a new version for this template. You can upload the file after creation.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="changelog" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+              Changelog
+            </Label>
+            <Textarea
+              id="changelog"
+              placeholder="Describe what changed in this version..."
+              value={changelog}
+              onChange={(e) => setChangelog(e.target.value)}
+              className="bg-gray-50/50 min-h-[80px]"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="variables" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+              Variables Schema (JSON)
+            </Label>
+            <Textarea
+              id="variables"
+              placeholder='{ "type": "object", "properties": { ... } }'
+              value={variablesSchema}
+              onChange={(e) => setVariablesSchema(e.target.value)}
+              className="bg-gray-50/50 font-mono text-xs min-h-[100px]"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="conditions" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+              Conditions Schema (JSON)
+            </Label>
+            <Textarea
+              id="conditions"
+              placeholder='{ "type": "object", "properties": { ... } }'
+              value={conditionsSchema}
+              onChange={(e) => setConditionsSchema(e.target.value)}
+              className="bg-gray-50/50 font-mono text-xs min-h-[100px]"
+            />
+          </div>
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-100 rounded-md flex items-center gap-2 text-red-600 text-sm">
+              <AlertCircle className="h-4 w-4" />
+              {error}
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setIsOpen(false)} disabled={createVersion.isPending}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleCreate} 
+            disabled={!changelog || createVersion.isPending}
+            className="bg-gray-900 text-white hover:bg-gray-800"
+          >
+            {createVersion.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create Version"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface LifecycleActionProps {
+  templateId: string;
+  version: TemplateVersion;
+  userRole?: UserRole;
+}
+
+function PublishAction({ templateId, version, userRole }: LifecycleActionProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const publish = usePublishVersion();
+  const { refetch: refetchTemplate } = useTemplate(templateId);
+  const { refetch: refetchVersions } = useTemplateVersions(templateId);
+
+  const handlePublish = async () => {
+    try {
+      await publish.mutateAsync({ templateId, versionId: version.id });
+      await Promise.all([refetchTemplate(), refetchVersions()]);
+      setIsOpen(false);
+    } catch (error) {
+      console.error("Failed to publish version", error);
+    }
+  };
+
+  const isAuthorized = userRole === UserRole.ADMIN;
+  const isDraft = version.status === TemplateVersionStatus.DRAFT;
+  const isValid = version.validationStatus === ValidationStatus.VALID;
+  const canPublish = isAuthorized && isDraft && isValid;
+
+  if (!isAuthorized || version.status === TemplateVersionStatus.PUBLISHED || version.status === TemplateVersionStatus.ARCHIVED) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button 
+          variant="outline" 
+          size="icon" 
+          className="h-8 w-8 text-gray-400 hover:text-green-600 hover:border-green-200 hover:bg-green-50"
+          disabled={!canPublish}
+          title={!isValid ? "Version must be valid to publish" : "Publish Version"}
+        >
+          <Rocket className="h-3.5 w-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Publish Version v{version.versionNumber}</DialogTitle>
+          <DialogDescription>
+            This will make this version the active template for all new document generations. 
+            Any previously published version will be archived.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="mt-4">
+          <Button variant="ghost" onClick={() => setIsOpen(false)} disabled={publish.isPending}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handlePublish} 
+            disabled={publish.isPending}
+            className="bg-green-600 text-white hover:bg-green-700"
+          >
+            {publish.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Publishing...
+              </>
+            ) : (
+              "Confirm Publish"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ArchiveAction({ templateId, version, userRole }: LifecycleActionProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const archive = useArchiveVersion();
+  const { refetch: refetchTemplate } = useTemplate(templateId);
+  const { refetch: refetchVersions } = useTemplateVersions(templateId);
+
+  const handleArchive = async () => {
+    try {
+      await archive.mutateAsync({ templateId, versionId: version.id });
+      await Promise.all([refetchTemplate(), refetchVersions()]);
+      setIsOpen(false);
+    } catch (error) {
+      console.error("Failed to archive version", error);
+    }
+  };
+
+  const isAuthorized = userRole === UserRole.ADMIN;
+  const isArchived = version.status === TemplateVersionStatus.ARCHIVED;
+  const canArchive = isAuthorized && !isArchived;
+
+  if (!isAuthorized || isArchived) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button 
+          variant="outline" 
+          size="icon" 
+          className="h-8 w-8 text-gray-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
+          disabled={!canArchive}
+          title="Archive Version"
+        >
+          <Archive className="h-3.5 w-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Archive Version v{version.versionNumber}</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to archive this version? It will no longer be available for document generation or publishing.
+            {version.status === TemplateVersionStatus.PUBLISHED && (
+              <p className="mt-2 font-bold text-red-600">
+                Warning: This is the currently published version. Archiving it will leave the template without a published version.
+              </p>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="mt-4">
+          <Button variant="ghost" onClick={() => setIsOpen(false)} disabled={archive.isPending}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleArchive} 
+            disabled={archive.isPending}
+            variant="destructive"
+          >
+            {archive.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Archiving...
+              </>
+            ) : (
+              "Confirm Archive"
             )}
           </Button>
         </DialogFooter>

@@ -8,6 +8,25 @@ export class AuditService {
   async findAll() {
     return this.prisma.auditLog.findMany({
       orderBy: { createdAt: 'desc' },
+      include: { actor: true },
+    });
+  }
+
+  async record(data: {
+    entityType: string;
+    entityId: string;
+    action: string;
+    actorId: string;
+    metadata?: any;
+  }) {
+    return this.prisma.auditLog.create({
+      data: {
+        entityType: data.entityType,
+        entityId: data.entityId,
+        action: data.action,
+        actorId: data.actorId,
+        metadataJson: data.metadata || {},
+      },
     });
   }
 }

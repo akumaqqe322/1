@@ -28,6 +28,6 @@ export class TemplatesController {
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateTemplateDto) {
-    return this.templatesService.update(id, dto);
+    return this.templatesService.update(id, dto, '00000000-0000-0000-0000-000000000000');
   }
 }

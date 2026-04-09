@@ -63,3 +63,59 @@ export const useGeneratedDocument = (id: string | undefined) => {
     },
   });
 };
+
+export const useUploadTemplateFile = () => {
+  return useMutation({
+    mutationFn: async ({ templateId, versionId, file }: { templateId: string; versionId: string; file: File }) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const { data } = await api.post<TemplateVersion>(`/templates/${templateId}/versions/${versionId}/file`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return data;
+    },
+  });
+};
+
+export const useCreateTemplateVersion = () => {
+  return useMutation({
+    mutationFn: async ({ 
+      templateId, 
+      changelog, 
+      variablesSchemaJson, 
+      conditionsSchemaJson 
+    }: { 
+      templateId: string; 
+      changelog: string; 
+      variablesSchemaJson?: any; 
+      conditionsSchemaJson?: any; 
+    }) => {
+      const { data } = await api.post<TemplateVersion>(`/templates/${templateId}/versions`, {
+        changelog,
+        variablesSchemaJson,
+        conditionsSchemaJson,
+      });
+      return data;
+    },
+  });
+};
+
+export const usePublishVersion = () => {
+  return useMutation({
+    mutationFn: async ({ templateId, versionId }: { templateId: string; versionId: string }) => {
+      const { data } = await api.post<TemplateVersion>(`/templates/${templateId}/versions/${versionId}/publish`);
+      return data;
+    },
+  });
+};
+
+export const useArchiveVersion = () => {
+  return useMutation({
+    mutationFn: async ({ templateId, versionId }: { templateId: string; versionId: string }) => {
+      const { data } = await api.post<TemplateVersion>(`/templates/${templateId}/versions/${versionId}/archive`);
+      return data;
+    },
+  });
+};

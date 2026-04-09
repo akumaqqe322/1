@@ -47,7 +47,7 @@ export class TemplateVersionsController {
     )
     file: Express.Multer.File,
   ) {
-    return this.versionsService.uploadFile(templateId, versionId, file);
+    return this.versionsService.uploadFile(templateId, versionId, file, SYSTEM_ACTOR_ID);
   }
 
   @Post(':versionId/preview')
@@ -73,7 +73,7 @@ export class TemplateVersionsController {
     @Param('templateId') templateId: string,
     @Param('versionId') versionId: string,
   ) {
-    return this.versionsService.publish(templateId, versionId);
+    return this.versionsService.publish(templateId, versionId, SYSTEM_ACTOR_ID);
   }
 
   @Post(':versionId/archive')
@@ -81,6 +81,6 @@ export class TemplateVersionsController {
     @Param('templateId') templateId: string,
     @Param('versionId') versionId: string,
   ) {
-    return this.versionsService.archive(templateId, versionId);
+    return this.versionsService.archive(templateId, versionId, SYSTEM_ACTOR_ID);
   }
 }

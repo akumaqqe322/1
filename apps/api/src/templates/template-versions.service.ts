@@ -6,6 +6,7 @@ import { StorageService } from '../storage/storage.service';
 import { TemplateValidationQueueService } from './template-validation-queue.service';
 import { DocumentGenerationQueueService } from './document-generation-queue.service';
 import { CasesService } from '../cases/cases.service';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class TemplateVersionsService {
@@ -27,6 +28,7 @@ export class TemplateVersionsService {
     private validationQueue: TemplateValidationQueueService,
     private generationQueue: DocumentGenerationQueueService,
     private casesService: CasesService,
+    private auditService: AuditService,
   ) {}
 
   async create(templateId: string, dto: CreateTemplateVersionDto, actorId: string) {
@@ -47,7 +49,7 @@ export class TemplateVersionsService {
 
     const nextVersionNumber = (latestVersion?.versionNumber ?? 0) + 1;
 
-    return this.prisma.templateVersion.create({
+    const version = await this.prisma.templateVersion.create({
       data: {
         changelog: dto.changelog,
         variablesSchemaJson: dto.variablesSchemaJson as Prisma.InputJsonValue,
@@ -59,6 +61,16 @@ export class TemplateVersionsService {
       },
       include: this.detailsInclude,
     });
+
+    await this.auditService.record({
+      entityType: 'TEMPLATE_VERSION',
+      entityId: version.id,
+      action: 'VERSION_CREATED',
+      actorId,
+      metadata: { templateId, versionNumber: version.versionNumber },
+    });
+
+    return version;
   }
 
   async findAll(templateId: string) {
@@ -85,7 +97,7 @@ export class TemplateVersionsService {
     return version;
   }
 
-  async uploadFile(templateId: string, versionId: string, file: Express.Multer.File) {
+  async uploadFile(templateId: string, versionId: string, file: Express.Multer.File, actorId: string) {
     const version = await this.findById(templateId, versionId);
 
     if (version.status === TemplateVersionStatus.ARCHIVED) {
@@ -110,6 +122,14 @@ export class TemplateVersionsService {
       include: this.detailsInclude,
     });
 
+    await this.auditService.record({
+      entityType: 'TEMPLATE_VERSION',
+      entityId: versionId,
+      action: 'FILE_UPLOADED',
+      actorId,
+      metadata: { fileName: file.originalname, templateId },
+    });
+
     await this.validationQueue.enqueueValidation(templateId, versionId);
 
     return updatedVersion;
@@ -131,7 +151,7 @@ export class TemplateVersionsService {
     await this.casesService.getCaseData(caseId);
 
     // 3. Create GeneratedDocument record and enqueue job
-    return this.prisma.$transaction(async (tx) => {
+    const doc = await this.prisma.$transaction(async (tx) => {
       const doc = await tx.generatedDocument.create({
         data: {
           templateId,
@@ -148,6 +168,16 @@ export class TemplateVersionsService {
 
       return doc;
     });
+
+    await this.auditService.record({
+      entityType: 'DOCUMENT',
+      entityId: doc.id,
+      action: 'PREVIEW_REQUESTED',
+      actorId,
+      metadata: { templateId, versionId, caseId },
+    });
+
+    return doc;
   }
 
   async generateFinal(templateId: string, versionId: string, caseId: string, actorId: string) {
@@ -175,7 +205,7 @@ export class TemplateVersionsService {
     await this.casesService.getCaseData(caseId);
 
     // 4. Create GeneratedDocument record and enqueue job
-    return this.prisma.$transaction(async (tx) => {
+    const doc = await this.prisma.$transaction(async (tx) => {
       const doc = await tx.generatedDocument.create({
         data: {
           templateId,
@@ -192,9 +222,19 @@ export class TemplateVersionsService {
 
       return doc;
     });
+
+    await this.auditService.record({
+      entityType: 'DOCUMENT',
+      entityId: doc.id,
+      action: 'FINAL_GENERATION_REQUESTED',
+      actorId,
+      metadata: { templateId, versionId, caseId },
+    });
+
+    return doc;
   }
 
-  async publish(templateId: string, versionId: string) {
+  async publish(templateId: string, versionId: string, actorId: string) {
     const version = await this.findById(templateId, versionId);
 
     if (version.status === TemplateVersionStatus.ARCHIVED) {
@@ -205,7 +245,7 @@ export class TemplateVersionsService {
       return version; // Already published
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const updatedVersion = await this.prisma.$transaction(async (tx) => {
       // 1. Set all other PUBLISHED versions of this template to ARCHIVED
       await tx.templateVersion.updateMany({
         where: {
@@ -238,12 +278,22 @@ export class TemplateVersionsService {
 
       return updatedVersion;
     });
+
+    await this.auditService.record({
+      entityType: 'TEMPLATE_VERSION',
+      entityId: versionId,
+      action: 'VERSION_PUBLISHED',
+      actorId,
+      metadata: { templateId, versionNumber: version.versionNumber },
+    });
+
+    return updatedVersion;
   }
 
-  async archive(templateId: string, versionId: string) {
+  async archive(templateId: string, versionId: string, actorId: string) {
     const version = await this.findById(templateId, versionId);
 
-    return this.prisma.$transaction(async (tx) => {
+    const updatedVersion = await this.prisma.$transaction(async (tx) => {
       const updatedVersion = await tx.templateVersion.update({
         where: { id: versionId },
         data: {
@@ -268,5 +318,15 @@ export class TemplateVersionsService {
 
       return updatedVersion;
     });
+
+    await this.auditService.record({
+      entityType: 'TEMPLATE_VERSION',
+      entityId: versionId,
+      action: 'VERSION_ARCHIVED',
+      actorId,
+      metadata: { templateId, versionNumber: version.versionNumber },
+    });
+
+    return updatedVersion;
   }
 }

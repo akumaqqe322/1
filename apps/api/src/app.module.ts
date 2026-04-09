@@ -11,6 +11,7 @@ import { RolesModule } from './roles/roles.module';
 import { TemplatesModule } from './templates/templates.module';
 import { DocumentsModule } from './documents/documents.module';
 import { AuditModule } from './audit/audit.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Global()
 @Module({
@@ -32,6 +33,7 @@ import { AuditModule } from './audit/audit.module';
     TemplatesModule,
     DocumentsModule,
     AuditModule,
+    DashboardModule,
   ],
   controllers: [HealthController],
   providers: [],

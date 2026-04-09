@@ -4,6 +4,7 @@ import { CreateTemplateDto } from './dto/create-template.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
 import { TemplateQueryDto } from './dto/template-query.dto';
 import { Prisma } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class TemplatesService {
@@ -20,7 +21,10 @@ export class TemplatesService {
     createdBy: this.userSelect,
   } as const;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditService: AuditService,
+  ) {}
 
   async create(dto: CreateTemplateDto, actorId: string) {
     // Minimal valid temporary actor strategy:
@@ -39,13 +43,23 @@ export class TemplatesService {
     }
 
     try {
-      return await this.prisma.template.create({
+      const template = await this.prisma.template.create({
         data: {
           ...dto,
           createdById: effectiveActorId,
         },
         include: this.detailsInclude,
       });
+
+      await this.auditService.record({
+        entityType: 'TEMPLATE',
+        entityId: template.id,
+        action: 'TEMPLATE_CREATED',
+        actorId: effectiveActorId,
+        metadata: { name: template.name, code: template.code },
+      });
+
+      return template;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException(`Template with code ${dto.code} already exists`);
@@ -88,13 +102,37 @@ export class TemplatesService {
     return template;
   }
 
-  async update(id: string, dto: UpdateTemplateDto) {
+  async update(id: string, dto: UpdateTemplateDto, actorId: string) {
+    // Minimal valid temporary actor strategy
+    let effectiveActorId = actorId;
+    if (actorId === '00000000-0000-0000-0000-000000000000') {
+      const admin = await this.prisma.user.findFirst({
+        where: { role: { code: 'admin' } }
+      });
+      if (admin) effectiveActorId = admin.id;
+    }
+
     try {
-      return await this.prisma.template.update({
+      const template = await this.prisma.template.update({
         where: { id },
         data: dto,
         include: this.detailsInclude,
       });
+
+      await this.auditService.record({
+        entityType: 'TEMPLATE',
+        entityId: template.id,
+        action: 'TEMPLATE_UPDATED',
+        actorId: effectiveActorId,
+        metadata: {
+          changes: Object.keys(dto),
+          status: dto.status,
+          category: dto.category,
+          caseType: dto.caseType,
+        },
+      });
+
+      return template;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
         throw new NotFoundException(`Template with ID ${id} not found`);
