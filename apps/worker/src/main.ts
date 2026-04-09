@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { QUEUE_NAME, TEMPLATE_VALIDATION_QUEUE } from '@app/shared';
 import 'dotenv/config';
 import { startTemplateValidationWorker } from './template-validation.processor';
