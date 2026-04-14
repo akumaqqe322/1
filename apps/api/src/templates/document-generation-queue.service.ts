@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { DOCUMENT_GENERATION_QUEUE, DocumentGenerationJob } from './constants';
+import { OutputFormat } from '@prisma/client';
 
 @Injectable()
 export class DocumentGenerationQueueService {
@@ -9,7 +10,7 @@ export class DocumentGenerationQueueService {
     @InjectQueue(DOCUMENT_GENERATION_QUEUE) private generationQueue: Queue,
   ) {}
 
-  async enqueuePreview(templateId: string, versionId: string, caseId: string, documentId: string) {
+  async enqueuePreview(templateId: string, versionId: string, caseId: string, documentId: string, outputFormat: OutputFormat = OutputFormat.DOCX) {
     await this.generationQueue.add(
       DocumentGenerationJob.PREVIEW,
       {
@@ -17,6 +18,7 @@ export class DocumentGenerationQueueService {
         versionId,
         caseId,
         documentId,
+        outputFormat,
       },
       {
         attempts: 3,
@@ -29,7 +31,7 @@ export class DocumentGenerationQueueService {
     );
   }
 
-  async enqueueFinal(templateId: string, versionId: string, caseId: string, documentId: string) {
+  async enqueueFinal(templateId: string, versionId: string, caseId: string, documentId: string, outputFormat: OutputFormat = OutputFormat.DOCX) {
     await this.generationQueue.add(
       DocumentGenerationJob.FINAL,
       {
@@ -37,6 +39,7 @@ export class DocumentGenerationQueueService {
         versionId,
         caseId,
         documentId,
+        outputFormat,
       },
       {
         attempts: 3,

@@ -29,8 +29,8 @@ export const useTemplateVersions = (templateId: string | undefined) => {
 
 export const useGeneratePreview = () => {
   return useMutation({
-    mutationFn: async ({ templateId, versionId, caseId }: { templateId: string; versionId: string; caseId: string }) => {
-      const { data } = await api.post<GeneratedDocument>(`/templates/${templateId}/versions/${versionId}/preview`, { caseId });
+    mutationFn: async ({ templateId, versionId, caseId, outputFormat }: { templateId: string; versionId: string; caseId: string; outputFormat?: string }) => {
+      const { data } = await api.post<GeneratedDocument>(`/templates/${templateId}/versions/${versionId}/preview`, { caseId, outputFormat });
       return data;
     },
   });
@@ -38,8 +38,8 @@ export const useGeneratePreview = () => {
 
 export const useGenerateFinal = () => {
   return useMutation({
-    mutationFn: async ({ templateId, versionId, caseId }: { templateId: string; versionId: string; caseId: string }) => {
-      const { data } = await api.post<GeneratedDocument>(`/templates/${templateId}/versions/${versionId}/generate`, { caseId });
+    mutationFn: async ({ templateId, versionId, caseId, outputFormat }: { templateId: string; versionId: string; caseId: string; outputFormat?: string }) => {
+      const { data } = await api.post<GeneratedDocument>(`/templates/${templateId}/versions/${versionId}/generate`, { caseId, outputFormat });
       return data;
     },
   });

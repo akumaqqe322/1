@@ -64,7 +64,7 @@ export class TemplateVersionsController {
     @Body() dto: GeneratePreviewDto,
     @User() user: any,
   ) {
-    return this.versionsService.generatePreview(templateId, versionId, dto.caseId, user.id);
+    return this.versionsService.generatePreview(templateId, versionId, dto.caseId, user.id, dto.outputFormat);
   }
 
   @Post(':versionId/generate')
@@ -75,7 +75,7 @@ export class TemplateVersionsController {
     @Body() dto: GenerateFinalDto,
     @User() user: any,
   ) {
-    return this.versionsService.generateFinal(templateId, versionId, dto.caseId, user.id);
+    return this.versionsService.generateFinal(templateId, versionId, dto.caseId, user.id, dto.outputFormat);
   }
 
   @Post(':versionId/publish')

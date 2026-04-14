@@ -135,7 +135,7 @@ export class TemplateVersionsService {
     return updatedVersion;
   }
 
-  async generatePreview(templateId: string, versionId: string, caseId: string, actorId: string) {
+  async generatePreview(templateId: string, versionId: string, caseId: string, actorId: string, outputFormat: OutputFormat = OutputFormat.DOCX) {
     const version = await this.findById(templateId, versionId);
 
     // 1. Verify version is ready for generation
@@ -159,12 +159,12 @@ export class TemplateVersionsService {
           caseId,
           requestedById: actorId,
           generationType: GenerationType.PREVIEW,
-          outputFormat: OutputFormat.DOCX,
+          outputFormat,
           status: DocumentStatus.QUEUED,
         },
       });
 
-      await this.generationQueue.enqueuePreview(templateId, versionId, caseId, doc.id);
+      await this.generationQueue.enqueuePreview(templateId, versionId, caseId, doc.id, outputFormat);
 
       return doc;
     });
@@ -180,7 +180,7 @@ export class TemplateVersionsService {
     return doc;
   }
 
-  async generateFinal(templateId: string, versionId: string, caseId: string, actorId: string) {
+  async generateFinal(templateId: string, versionId: string, caseId: string, actorId: string, outputFormat: OutputFormat = OutputFormat.DOCX) {
     const version = await this.findById(templateId, versionId);
 
     // 1. Verify version is ready for generation
@@ -213,12 +213,12 @@ export class TemplateVersionsService {
           caseId,
           requestedById: actorId,
           generationType: GenerationType.FINAL,
-          outputFormat: OutputFormat.DOCX,
+          outputFormat,
           status: DocumentStatus.QUEUED,
         },
       });
 
-      await this.generationQueue.enqueueFinal(templateId, versionId, caseId, doc.id);
+      await this.generationQueue.enqueueFinal(templateId, versionId, caseId, doc.id, outputFormat);
 
       return doc;
     });

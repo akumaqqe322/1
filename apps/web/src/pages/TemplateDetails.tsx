@@ -19,12 +19,19 @@ import {
   ValidationStatus,
   TemplateVersion
 } from "../types/template";
-import { DocumentStatus } from "../types/document";
+import { DocumentStatus, OutputFormat } from "../types/document";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -400,6 +407,7 @@ interface PreviewActionProps {
 function PreviewAction({ templateId, version, userRole, onSuccess, activeDocId, activeDoc }: PreviewActionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [caseId, setCaseId] = useState("");
+  const [outputFormat, setOutputFormat] = useState<OutputFormat>(OutputFormat.DOCX);
   const generatePreview = useGeneratePreview();
 
   const isThisVersionActive = activeDocId && activeDoc?.templateVersionId === version.id;
@@ -411,6 +419,7 @@ function PreviewAction({ templateId, version, userRole, onSuccess, activeDocId, 
         templateId,
         versionId: version.id,
         caseId,
+        outputFormat,
       });
       onSuccess(doc.id);
       setIsOpen(false);
@@ -496,6 +505,23 @@ function PreviewAction({ templateId, version, userRole, onSuccess, activeDocId, 
               Enter a valid Case ID to populate the template variables.
             </p>
           </div>
+          <div className="grid gap-2">
+            <Label htmlFor="previewFormat" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+              Output Format
+            </Label>
+            <Select 
+              value={outputFormat} 
+              onValueChange={(v) => setOutputFormat(v as OutputFormat)}
+            >
+              <SelectTrigger id="previewFormat" className="bg-gray-50/50">
+                <SelectValue placeholder="Select format" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={OutputFormat.DOCX}>Word Document (.docx)</SelectItem>
+                <SelectItem value={OutputFormat.PDF}>PDF Document (.pdf)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setIsOpen(false)} disabled={generatePreview.isPending}>
@@ -534,6 +560,7 @@ interface FinalActionProps {
 function FinalAction({ templateId, template, version, userRole, onSuccess, activeDocId, activeDoc }: FinalActionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [caseId, setCaseId] = useState("");
+  const [outputFormat, setOutputFormat] = useState<OutputFormat>(OutputFormat.DOCX);
   const generateFinal = useGenerateFinal();
 
   const isThisVersionActive = activeDocId && activeDoc?.templateVersionId === version.id;
@@ -545,6 +572,7 @@ function FinalAction({ templateId, template, version, userRole, onSuccess, activ
         templateId,
         versionId: version.id,
         caseId,
+        outputFormat,
       });
       onSuccess(doc.id);
       setIsOpen(false);
@@ -629,6 +657,23 @@ function FinalAction({ templateId, template, version, userRole, onSuccess, activ
             <p className="text-[10px] text-gray-400">
               Enter the official Case ID from Cassatix.
             </p>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="finalFormat" className="text-xs font-bold uppercase tracking-wider text-gray-500">
+              Output Format
+            </Label>
+            <Select 
+              value={outputFormat} 
+              onValueChange={(v) => setOutputFormat(v as OutputFormat)}
+            >
+              <SelectTrigger id="finalFormat" className="bg-gray-50/50">
+                <SelectValue placeholder="Select format" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={OutputFormat.DOCX}>Word Document (.docx)</SelectItem>
+                <SelectItem value={OutputFormat.PDF}>PDF Document (.pdf)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <DialogFooter>

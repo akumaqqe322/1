@@ -1,11 +1,14 @@
 import { Worker, Job } from 'bullmq';
-import { PrismaClient, DocumentStatus } from '@prisma/client';
+import { PrismaClient, DocumentStatus, OutputFormat } from '@prisma/client';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { QUEUE_NAME, getRedisConnection } from '@app/shared';
 import { CasesService } from './cases/cases.service';
+import libreoffice from 'libreoffice-convert';
+import { promisify } from 'util';
 
+const convertAsync = promisify(libreoffice.convert);
 const prisma = new PrismaClient();
 const casesService = new CasesService();
 const s3Client = new S3Client({
@@ -28,8 +31,8 @@ export async function startPreviewWorker() {
       return;
     }
 
-    const { templateId, versionId, caseId, documentId } = job.data;
-    console.log(`Generating preview for document: ${documentId}`);
+    const { templateId, versionId, caseId, documentId, outputFormat = OutputFormat.DOCX } = job.data;
+    console.log(`Generating preview for document: ${documentId} (Format: ${outputFormat})`);
 
     try {
       // 1. Update status to PROCESSING
@@ -68,18 +71,33 @@ export async function startPreviewWorker() {
       });
 
       doc.render(caseData);
-      const outputBuffer = doc.getZip().generate({ type: 'nodebuffer' });
+      let outputBuffer = doc.getZip().generate({ type: 'nodebuffer' });
+      let contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      let extension = 'docx';
 
-      // 5. Save preview to S3
-      const previewKey = `previews/${documentId}.docx`;
+      // 5. Convert to PDF if requested
+      if (outputFormat === OutputFormat.PDF) {
+        console.log(`Converting preview document ${documentId} to PDF...`);
+        try {
+          outputBuffer = await convertAsync(outputBuffer, '.pdf', undefined);
+          contentType = 'application/pdf';
+          extension = 'pdf';
+        } catch (convError) {
+          console.error(`PDF conversion failed for document: ${documentId}`, convError);
+          throw new Error(`PDF conversion failed: ${convError.message}`);
+        }
+      }
+
+      // 6. Save preview to S3
+      const previewKey = `previews/${documentId}.${extension}`;
       await s3Client.send(new PutObjectCommand({
         Bucket: bucket,
         Key: previewKey,
         Body: outputBuffer,
-        ContentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ContentType: contentType,
       }));
 
-      // 6. Update document status to COMPLETED
+      // 7. Update document status to COMPLETED
       await prisma.generatedDocument.update({
         where: { id: documentId },
         data: {
