@@ -19,7 +19,7 @@ export const navigationConfig: NavItem[] = [
     title: 'Templates',
     href: '/templates',
     icon: FileText,
-    roles: [UserRole.ADMIN, UserRole.LAWYER],
+    roles: [UserRole.ADMIN, UserRole.LAWYER, UserRole.PARTNER],
   },
   {
     title: 'Documents',

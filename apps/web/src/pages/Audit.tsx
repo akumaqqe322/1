@@ -1,5 +1,7 @@
 import { useAuditLogs } from "../hooks/useAuditLogs";
 import { PageState } from "../components/shared/StatusBadge";
+import { useAuth } from "../contexts/AuthContext";
+import { UserRole } from "../types/auth";
 import { 
   Table, 
   TableBody, 
@@ -10,13 +12,15 @@ import {
 } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { Link } from "react-router-dom";
 import { 
   ShieldCheck, 
   RefreshCcw, 
   User, 
   Activity,
   Database,
-  Clock
+  Clock,
+  ArrowLeft
 } from "lucide-react";
 import { cn } from "../lib/utils";
 
@@ -39,7 +43,24 @@ const MetadataDisplay = ({ metadata }: { metadata: any }) => {
 };
 
 export default function Audit() {
+  const { user } = useAuth();
   const { data: logs, isLoading, isError, error, refetch } = useAuditLogs();
+
+  if (user?.role !== UserRole.ADMIN) {
+    return (
+      <PageState 
+        title="Access Denied" 
+        description="You do not have permission to view the audit logs. This area is restricted to administrators."
+        icon="error"
+        action={
+          <Button asChild variant="outline">
+            <Link to="/"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard</Link>
+          </Button>
+        }
+        className="h-[60vh]"
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">

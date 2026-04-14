@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTemplates } from "../hooks/useTemplates";
 import { TemplateStatus, TemplateFilters } from "../types/template";
+import { useAuth } from "../contexts/AuthContext";
+import { UserRole } from "../types/auth";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { 
@@ -33,6 +35,8 @@ import {
 import { cn } from "../lib/utils";
 
 export default function Templates() {
+  const { user } = useAuth();
+  const isPartner = user?.role === UserRole.PARTNER;
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [filters, setFilters] = useState<TemplateFilters>({
     search: "",
@@ -71,9 +75,11 @@ export default function Templates() {
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCcw className="mr-2 h-4 w-4" /> Refresh
           </Button>
-          <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> New Template
-          </Button>
+          {!isPartner && (
+            <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> New Template
+            </Button>
+          )}
         </div>
       </div>
 

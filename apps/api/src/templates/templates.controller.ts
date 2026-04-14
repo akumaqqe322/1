@@ -1,19 +1,22 @@
-import { Controller, Get, Post, Body, Patch, Param, Query, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Query, UsePipes, ValidationPipe, UseGuards } from '@nestjs/common';
 import { TemplatesService } from './templates.service';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
 import { TemplateQueryDto } from './dto/template-query.dto';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { User } from '../auth/user.decorator';
 
 @Controller('templates')
+@UseGuards(RolesGuard)
 @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
 export class TemplatesController {
   constructor(private readonly templatesService: TemplatesService) {}
 
   @Post()
-  create(@Body() dto: CreateTemplateDto) {
-    // Simulated actorId until auth is implemented
-    const actorId = '00000000-0000-0000-0000-000000000000'; 
-    return this.templatesService.create(dto, actorId);
+  @Roles('admin', 'lawyer')
+  create(@Body() dto: CreateTemplateDto, @User() user: any) {
+    return this.templatesService.create(dto, user.id);
   }
 
   @Get()
@@ -27,7 +30,8 @@ export class TemplatesController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateTemplateDto) {
-    return this.templatesService.update(id, dto, '00000000-0000-0000-0000-000000000000');
+  @Roles('admin', 'lawyer')
+  update(@Param('id') id: string, @Body() dto: UpdateTemplateDto, @User() user: any) {
+    return this.templatesService.update(id, dto, user.id);
   }
 }

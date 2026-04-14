@@ -1,7 +1,9 @@
-import { Controller, Get, Param, Query, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Param, UsePipes, ValidationPipe, UseGuards } from '@nestjs/common';
 import { DocumentsService } from './documents.service';
+import { RolesGuard } from '../auth/roles.guard';
 
 @Controller('documents')
+@UseGuards(RolesGuard)
 @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
 export class DocumentsController {
   constructor(private readonly documentsService: DocumentsService) {}
