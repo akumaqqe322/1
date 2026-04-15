@@ -46,7 +46,7 @@ export class TemplateVersionsController {
     @UploadedFile(
       new ParseFilePipe({
         validators: [
-          new FileTypeValidator({ fileType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
+          new FileTypeValidator({ fileType: /application\/vnd.openxmlformats-officedocument.wordprocessingml.document/ }),
         ],
       }),
     )
