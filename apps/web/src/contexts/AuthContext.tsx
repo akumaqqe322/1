@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole, AuthState } from '../types/auth';
+import { api } from '../lib/api';
 
 interface AuthContextType extends AuthState {
   login: (role: UserRole) => Promise<void>;
@@ -8,26 +9,11 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for stubbed auth
-const MOCK_USERS: Record<UserRole, User> = {
-  [UserRole.ADMIN]: {
-    id: '1',
-    email: 'admin@firm.com',
-    name: 'Admin User',
-    role: UserRole.ADMIN,
-  },
-  [UserRole.LAWYER]: {
-    id: '2',
-    email: 'lawyer@firm.com',
-    name: 'Lawyer User',
-    role: UserRole.LAWYER,
-  },
-  [UserRole.PARTNER]: {
-    id: '3',
-    email: 'partner@client.com',
-    name: 'Partner User',
-    role: UserRole.PARTNER,
-  },
+// Stable mock emails for dev/demo
+const MOCK_EMAILS: Record<UserRole, string> = {
+  [UserRole.ADMIN]: 'admin@firm.com',
+  [UserRole.LAWYER]: 'lawyer@firm.com',
+  [UserRole.PARTNER]: 'partner@client.com',
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -37,15 +23,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading: true,
   });
 
-  useEffect(() => {
-    // Simulate checking session
-    const savedUser = localStorage.getItem('mock_user');
-    if (savedUser) {
+  const syncUser = async (email: string) => {
+    try {
+      // We pass the email in the x-user-id header to resolve the real user from DB
+      const response = await api.get('/users/me', {
+        headers: { 'x-user-id': email }
+      });
+      const user = response.data;
+      
+      // Map backend role code back to frontend UserRole enum if needed
+      // Assuming they match or are handled by the type
+      const mappedUser: User = {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role.code.toUpperCase() as UserRole,
+      };
+
+      localStorage.setItem('mock_email', email);
       setState({
-        user: JSON.parse(savedUser),
+        user: mappedUser,
         isAuthenticated: true,
         isLoading: false,
       });
+    } catch (error) {
+      console.error('Failed to sync mock user:', error);
+      logout();
+    }
+  };
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('mock_email');
+    if (savedEmail) {
+      syncUser(savedEmail);
     } else {
       setState((prev) => ({ ...prev, isLoading: false }));
     }
@@ -53,20 +63,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (role: UserRole) => {
     setState((prev) => ({ ...prev, isLoading: true }));
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    const user = MOCK_USERS[role];
-    localStorage.setItem('mock_user', JSON.stringify(user));
-    setState({
-      user,
-      isAuthenticated: true,
-      isLoading: false,
-    });
+    const email = MOCK_EMAILS[role];
+    await syncUser(email);
   };
 
   const logout = () => {
-    localStorage.removeItem('mock_user');
+    localStorage.removeItem('mock_email');
     setState({
       user: null,
       isAuthenticated: false,

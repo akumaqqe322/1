@@ -22,18 +22,41 @@ async function main() {
     });
   }
 
-  console.log('Seeding default user...');
+  console.log('Seeding mock users...');
   const adminRole = await prisma.role.findUnique({ where: { code: 'admin' } });
-  if (adminRole) {
-    await prisma.user.upsert({
-      where: { email: 'admin@cassatix.com' },
-      update: { name: 'System Admin' },
-      create: {
-        email: 'admin@cassatix.com',
-        name: 'System Admin',
-        roleId: adminRole.id,
-      },
-    });
+  const lawyerRole = await prisma.role.findUnique({ where: { code: 'lawyer' } });
+  const partnerRole = await prisma.role.findUnique({ where: { code: 'partner' } });
+
+  const mockUsers = [
+    {
+      email: 'admin@firm.com',
+      name: 'Admin User',
+      roleId: adminRole?.id,
+    },
+    {
+      email: 'lawyer@firm.com',
+      name: 'Lawyer User',
+      roleId: lawyerRole?.id,
+    },
+    {
+      email: 'partner@client.com',
+      name: 'Partner User',
+      roleId: partnerRole?.id,
+    },
+  ];
+
+  for (const user of mockUsers) {
+    if (user.roleId) {
+      await prisma.user.upsert({
+        where: { email: user.email },
+        update: { name: user.name, roleId: user.roleId },
+        create: {
+          email: user.email,
+          name: user.name,
+          roleId: user.roleId,
+        },
+      });
+    }
   }
 
   console.log('Seeding completed.');

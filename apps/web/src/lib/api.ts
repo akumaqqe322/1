@@ -9,10 +9,11 @@ export const api = axios.create({
 
 // Add a request interceptor to attach mock user ID for dev RBAC
 api.interceptors.request.use((config) => {
-  const savedUser = localStorage.getItem('mock_user');
-  if (savedUser) {
-    const user = JSON.parse(savedUser);
-    config.headers['x-user-id'] = user.id;
+  const savedEmail = localStorage.getItem('mock_email');
+  if (savedEmail) {
+    // We send the email as the identifier. 
+    // The backend RolesGuard is updated to resolve the user by email if it contains '@'.
+    config.headers['x-user-id'] = savedEmail;
   }
   return config;
 });

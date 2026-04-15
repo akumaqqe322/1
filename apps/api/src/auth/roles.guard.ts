@@ -27,13 +27,14 @@ export class RolesGuard implements CanActivate {
       throw new UnauthorizedException('User ID header missing');
     }
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
+    // Support both UUID and email for mock auth stability
+    const user = await this.prisma.user.findFirst({
+      where: userId.includes('@') ? { email: userId } : { id: userId },
       include: { role: true },
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException(`User not found: ${userId}`);
     }
 
     // Attach user to request for use in controllers if needed
