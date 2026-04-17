@@ -1,105 +1,175 @@
-# Cassatix — Конструктор юридических документов
+# Cassatix
 
-Cassatix — это модульная система создания документов, разработанная для юристов. Она позволяет управлять сложными шаблонами документов, контролировать версии и автоматизировать генерацию документов (DOCX/PDF), интегрированную с данными дел.
+Cassatix is a professional-grade document automation and management platform tailored for legal workflows. It streamlines the lifecycle of legal templates—from initial drafting and versioning to automated document generation through multiple data sourcing modes.
 
-## 🏗 Обзор архитектуры
+## Features
 
-Проект следует архитектуре **модульного монолита** внутри монорепозитория, разделяя пользовательский интерфейс, оркестрацию API и тяжелую фоновую обработку.
+### Template Lifecycle Management
+*   **Version Control**: Manage templates through distinct stages: DRAFT, PUBLISHED (Live), and ARCHIVED.
+*   **Safety Gate**: Visual segregation between the working draft and the production-ready live version ensures stable document generation.
+*   **Validation**: Automatic validation system for uploaded .docx files to ensure variable compatibility.
 
-### Границы модулей
-- **Веб-приложение (`apps/web`)**: SPA на базе React для администраторов и юристов для управления шаблонами и запуска генерации.
-- **API-сервер (`apps/api`)**: Сервер NestJS, обрабатывающий бизнес-логику, RBAC (ролевой доступ), аудит и оркестрацию задач.
-- **Фоновый воркер (`apps/worker`)**: Специализированный сервис для ресурсоемких задач, таких как рендеринг DOCX и конвертация в PDF.
-- **Общий пакет (`packages/shared`)**: Общие типы, константы и утилиты, используемые во всех сервисах.
+### Automated Document Generation
+*   **Multi-Mode Sourcing**: Generate documents using three distinct input methods:
+    *   **Case-Based**: Integration with Case Management data (simulated Project 2.0 source).
+    *   **AI Extraction**: Automated field extraction from uploaded source documents using Gemini AI logic.
+    *   **Manual Entry**: Structured forms for ad-hoc generation context.
+*   **Format Support**: Background workers process and output files in both .docx and .pdf formats.
+*   **Asynchronous Processing**: High-throughput generation handled via a distributed queue system.
 
-### Технологический стек
-- **Фронтенд**: React 19, Vite, Tailwind CSS, TanStack Query, Radix UI.
-- **Бэкенд**: NestJS, Prisma (PostgreSQL), BullMQ (Redis).
-- **Хранилище**: S3-совместимое хранилище для файлов шаблонов и сгенерированных документов.
-- **Движок документов**: `docxtemplater` для рендеринга DOCX, `libreoffice-convert` (LibreOffice) для генерации PDF.
+### Security and Governance
+*   **Role-Based Access Control**: Granular permissions for Admin, Lawyer, and Partner roles.
+*   **Audit Logging**: Comprehensive tracking of all template modifications and document generation events.
+*   **Immutable History**: Archived versions are preserved as read-only records for compliance.
 
-## 📋 Карта функций
+## Architecture Overview
 
-| Требование | Статус реализации | Технические детали |
-| :--- | :--- | :--- |
-| **Управление шаблонами** | ✅ Реализовано | CRUD для шаблонов с категоризацией и привязкой к типам дел. |
-| **Версионность** | ✅ Реализовано | Неизменяемая история версий со статусами черновика, опубликованной и архивной. |
-| **Загрузка файлов** | ✅ Реализовано | Хранилище на базе S3 для файлов шаблонов `.docx`. |
-| **Валидация** | ✅ Реализовано | Автоматическая фоновая проверка переменных и структуры шаблона. |
-| **Генерация документов** | ✅ Реализовано | Асинхронная генерация с использованием BullMQ для предотвращения блокировки API. |
-| **Поддержка Word/PDF** | ✅ Реализовано | Нативный рендеринг DOCX + конвертация в PDF на базе LibreOffice. |
-| **Аудит** | ✅ Реализовано | Детальный журнал всех административных действий и операций генерации. |
-| **RBAC (Ролевой доступ)** | ✅ Реализовано | Ролевой доступ (Админ, Юрист, Партнер), контролируемый на уровне API. |
-| **Управление логикой** | ✅ Реализовано | Визуальный редактор схем для управления переменными и условной логикой. |
+The system follows a decoupled, service-oriented architecture designed for scalability and reliability.
 
-## 📊 Модель данных и потоки
+*   **Frontend (apps/web)**: A modern, reactive SPA built with React and Vite, utilizing TanStack Query for state synchronization.
+*   **API Service (apps/api)**: A NestJS-based gateway handling authentication, template metadata, and generation job orchestration.
+*   **Worker Service (apps/worker)**: A dedicated Node.js process focused on intensive document assembly and format conversion chores.
+*   **Intelligence Layer**: Integration with Google Gemini API for structured data extraction from unstructured legal text.
+*   **Persistence & Queue**: PostgreSQL for relational data, Redis for distributed job queuing (BullMQ), and S3-compatible storage for binary artifacts.
 
-### Основные сущности
-- **Шаблон (Template)**: Определение документа верхнего уровня (например, "Стандартное NDA").
-- **Версия шаблона (TemplateVersion)**: Неизменяемый снимок шаблона, содержащий ссылку на файл `.docx`, схему переменных и условия.
-- **Сгенерированный документ (GeneratedDocument)**: Запись о конкретном запросе на генерацию, отслеживающая статус, формат вывода и место хранения.
-- **Журнал аудита (AuditLog)**: Постоянная запись всех действий, изменяющих состояние (например, `PUBLISH_VERSION`, `FINAL_GENERATION_REQUESTED`).
+## Core Workflows
 
-### Поток генерации
-1. **Триггер**: Пользователь выбирает `TemplateVersion` и указывает `caseId`.
-2. **Сохранение**: API создает `GeneratedDocument` (статус: `QUEUED`).
-3. **Задача**: Задача добавляется в очередь `DOCUMENT_GENERATION_QUEUE` (Redis/BullMQ).
-4. **Обработка**: Воркер получает данные дела, скачивает шаблон из S3 и рендерит DOCX.
-5. **Конвертация**: Если запрошен формат PDF, воркер вызывает LibreOffice для конвертации.
-6. **Хранение**: Результирующий файл загружается в S3.
-7. **Завершение**: Статус `GeneratedDocument` обновляется на `COMPLETED` с указанием `storagePath`.
+### Template Deployment
+1.  Define template metadata (name, code, category).
+2.  Create a NEW VERSION (Draft).
+3.  Upload a .docx file containing placeholders (e.g., `{{clientName}}`).
+4.  Run validation to confirm schema integrity.
+5.  Promote to LIVE to make the version available for final generation.
 
-## 🛡 Безопасность и RBAC
+### Document Generation
+1.  Initialize generation for a specific template.
+2.  Select source data (Link to Case, Extract with AI, or Manual Form).
+3.  Select workflow:
+    *   **Preview**: Uses the latest valid version for internal review.
+    *   **Final**: Uses the strictly published LIVE version.
+4.  Monitor background processing status.
+5.  Download generated assets from secure storage.
 
-Доступ контролируется через кастомный `RolesGuard` в NestJS API:
-- **Админ**: Полный доступ к системе, включая создание и публикацию шаблонов.
-- **Юрист**: Может управлять шаблонами и запускать генерацию превью/финальных документов.
-- **Партнер**: Доступ только для чтения к шаблонам и сгенерированным документам.
+## Demo Mode
 
-## ⚠️ Риски и сценарии сбоев
+Cassatix includes a built-in seeding mechanism for evaluation. Running the demo seed populates the system with:
+*   Pre-configured legal templates (Power of Attorney, Service Agreement, etc.).
+*   Mock "Project 2.0" case data for litigation and corporate matters.
+*   Initial user roles and administrative accounts.
 
-- **Некорректные/поврежденные шаблоны**: Загрузка неверно сформированного `.docx` может нарушить работу движка рендеринга.
-  - *Смягчение*: Фоновый воркер валидации проверяет целостность файла и синтаксис переменных сразу после загрузки.
-- **Сбои генерации**: Проблемы с сетью или перебои в работе сервисов могут прервать рендеринг документа.
-  - *Смягчение*: BullMQ обеспечивает автоматические повторные попытки с экспоненциальной задержкой. Статус отслеживается как `FAILED` с выводом сообщений об ошибках в интерфейс.
-- **Конфликты версий**: Попытка опубликовать архивную версию или удалить опубликованную.
-  - *Смягчение*: Строгие переходы состояний, контролируемые в `TemplateVersionsService`.
-- **Сбои хранилища/очереди**: Недоступность S3 или Redis.
-  - *Смягчение*: Проверки работоспособности (health checks) и корректная обработка ошибок на уровне API; задачи остаются в очереди до тех пор, пока воркер не станет доступен.
-- **Утечки прав доступа**: Несанкционированный доступ к конфиденциальным юридическим документам.
-  - *Смягчение*: RBAC применяется на каждой конечной точке API; подписанные URL или проксированная загрузка гарантируют приватность хранилища.
+## Tech Stack
 
-## 🚧 Текущие ограничения и известные недостатки
+### Backend & Infrastructure
+*   **Framework**: NestJS (TypeScript)
+*   **ORM**: Prisma
+*   **Database**: PostgreSQL
+*   **Task Queue**: BullMQ & Redis
+*   **Storage**: S3-Compatible API (MinIO / AWS S3)
+*   **Processing**: Docxtemplater, PizZip, LibreOffice
 
-- **Имитация аутентификации**: Текущая реализация использует слой имитации аутентификации только для разработки. Для продакшн-развертывания требуется интеграция с реальным провайдером личности (например, Auth0, Firebase Auth).
-- **Зависимости окружения**: Конвертация PDF зависит от локальной установки LibreOffice. В продакшне для этого требуется специфический образ контейнера (например, `linuxserver/libreoffice`).
-- **UX логики**: Хотя визуальный редактор схем предоставлен, в настоящее время он поддерживает базовые свойства JSON Schema. Сложная вложенная логика по-прежнему требует ручной правки JSON в режиме "Код".
-- **Масштаб демо**: Система оптимизирована для демонстрации "Модульного монолита". Для высоконагруженного продакшна было бы полезно разделить Воркер на несколько специализированных микросервисов.
+### Frontend
+*   **Library**: React 19
+*   **Build Tool**: Vite
+*   **Styling**: Tailwind CSS 4
+*   **UI Components**: shadcn/ui & Radix UI
+*   **Data Fetching**: TanStack Query (React Query)
 
-## 🚀 Развертывание (Deployment)
+## Key Design Decisions
 
-Система готова к развертыванию на платформе **Railway** (или аналогичных PaaS) с использованием PostgreSQL и Redis.
+### Normalized Generation Context
+To support diverse data sources (Manual, AI, Database), the system utilizes an adapter layer that transforms raw inputs into a unified `GenerationContext`. This ensures the background workers operate on a stable schema regardless of how the data was acquired.
 
-### 1. Настройка Базы Данных и Redis
-- Добавьте сервис **PostgreSQL** в проект Railway.
-- Добавьте сервис **Redis** в проект Railway.
-- Railway автоматически предоставит переменные `DATABASE_URL` и `REDIS_URL`.
+### Background Worker Isolation
+Document generation and PDF conversion are expensive operations. By isolating these in a dedicated worker service with BullMQ, we ensure the main API remains responsive during high-load periods.
 
-### 2. Переменные окружения
-Настройте следующие переменные для сервисов:
+### Version Immutable State
+Once a template version is ARCHIVED, its storage path and binary content become immutable. This prevents historical document regeneration from being affected by retrospective template changes.
 
-| Переменная | Описание |
-| :--- | :--- |
-| `DATABASE_URL` | Строка подключения к PostgreSQL (автоматически от Railway) |
-| `REDIS_URL` | Строка подключения к Redis (автоматически от Railway) |
-| `S3_*` | Учетные данные вашего S3-хранилища (AWS, DigitalOcean, MinIO) |
-| `API_URL` | Публичный URL вашего API-сервиса (нужен для Web-фронтенда) |
+## Limitations
 
-### 3. Запуск сервисов
-Используйте `Procfile` для определения команд запуска в Railway:
-- **Web**: `npm run start:web`
-- **API**: `npm run start:api`
-- **Worker**: `npm run start:worker`
+*   **Storage Dependency**: Requires an S3-compatible object storage service for template and document persistence.
+*   **Extraction Accuracy**: AI-assisted extraction efficacy depends on the quality of the source text and current LLM model context limits.
+*   **LibreOffice Runtime**: PDF conversion requires a LibreOffice installation on the host or container running the Worker service.
 
----
-*Этот проект был разработан как техническое решение в соответствии с требованиями к конструктору юридических документов.*
+## Future Improvements
+
+*   **Native Template Editor**: Browser-based .docx editing to remove the dependency on external office software.
+*   **Advanced Logic Engine**: Introduction of complex conditional branching (IF/ELSE) within the variable schema UI.
+*   **Multi-Tenant Isolation**: Robust workspace partitioning for multi-firm deployments.
+
+## Setup & Deployment
+
+### 1. Environment Variables
+The application requires the following environment variables to be configured in a `.env` file at the root:
+
+**Shared & API Service**
+*   `DATABASE_URL`: Connection string for PostgreSQL (e.g., `postgresql://user:pass@host:5432/dbname`).
+*   `REDIS_URL`: Connection string for Redis components (e.g., `redis://host:6379`).
+*   `GEMINI_API_KEY`: API key for Google Gemini (required for AI Extraction mode).
+*   `S3_ENDPOINT`: Endpoint for S3-compatible storage (e.g., `http://localhost:9000` for MinIO).
+*   `S3_ACCESS_KEY` & `S3_SECRET_KEY`: Credentials for storage access.
+*   `S3_BUCKET`: Name of the bucket for document storage.
+
+**Web Service**
+*   `VITE_API_URL`: URL of the API service (e.g., `http://localhost:3001`).
+
+### 2. Local Development
+
+Follow these steps to get the full stack running locally:
+
+1.  **Install Dependencies**:
+    ```bash
+    npm install
+    ```
+2.  **Infrastructure**: Ensure PostgreSQL, Redis, and MinIO are running (refer to `docker-compose.yml`).
+3.  **Database Setup**:
+    ```bash
+    npx prisma migrate dev
+    npx prisma db seed
+    ```
+4.  **Start Services**:
+    We recommend running services in separate terminals or using the combined dev command:
+    ```bash
+    # Combined (using concurrently)
+    npm run dev
+
+    # Individual
+    npm run dev:web    # Starts Vite on port 3000
+    npm run dev:api    # Starts NestJS on port 3001
+    npm run dev:worker # Starts background worker
+    ```
+
+### 3. Running Services
+
+*   **Web (Port 3000)**: The main user interface for lawyers and admins.
+*   **API (Port 3001)**: Handles business logic, authentication, and orchestrates the generation queue.
+*   **Worker**: A headless service that consumes jobs from Redis to assembly .docx files and convert them to PDF.
+
+### 4. Production Deployment (Railway)
+
+Cassatix is designed to be deployed as three separate services on Railway:
+
+*   **API Service**: 
+    - Start Command: `npm run start:api`
+    - Attach PostgreSQL and Redis plugins.
+*   **Worker Service**:
+    - Start Command: `npm run start:worker`
+    - Ensure the environment has `libreoffice` installed (required for PDF conversion).
+*   **Web Service**:
+    - Start Command: `npm run start:web`
+    - Configure the `VITE_API_URL` to point to your deployed API service.
+
+### 5. Common Issues
+
+*   **Prisma Migration Errors**: If switching between different database providers, ensure you clear the `prisma/migrations` folder or use `prisma migrate reset`.
+*   **Redis Connection**: Ensure `REDIS_URL` matches the service name in the Docker network (e.g., `redis://redis:6379` vs `localhost`).
+*   **Missing Seed Data**: If you encounter a 401 "User not found" upon login, ensure `npx prisma db seed` was executed perfectly to create the initial administrative users.
+*   **S3 Bucket Missing**: The system expects the bucket defined in `S3_BUCKET` to exist. If using MinIO, you may need to create it once via the console.
+
+### 6. Verification Steps
+
+To verify the installation:
+1.  Navigate to `http://localhost:3000`.
+2.  Log in using seeded credentials (e.g., `admin@firm.com`).
+3.  Create a test template and upload a valid `.docx`.
+4.  Generate a **Preview** and check the **Worker** logs to ensure the assembly job completed successfully.
