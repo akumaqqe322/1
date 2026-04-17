@@ -1,8 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import PizZip from 'pizzip';
 import { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { Buffer } from 'node:buffer';
 
 const prisma = new PrismaClient();
 

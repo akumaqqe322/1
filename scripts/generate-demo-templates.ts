@@ -1,13 +1,21 @@
 
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { Buffer } from 'node:buffer';
 
 const OUTPUT_DIR = path.join(process.cwd(), 'demo/templates');
 const METADATA_DIR = path.join(OUTPUT_DIR, 'metadata');
 
-// Ensure directories exist
-if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+// Ensure directories exist and are clean
+if (fs.existsSync(OUTPUT_DIR)) {
+  console.log(`Cleaning old templates in ${OUTPUT_DIR}...`);
+  const oldFiles = fs.readdirSync(OUTPUT_DIR).filter(f => f.endsWith('.docx'));
+  oldFiles.forEach(f => fs.unlinkSync(path.join(OUTPUT_DIR, f)));
+} else {
+  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+}
+
 if (!fs.existsSync(METADATA_DIR)) fs.mkdirSync(METADATA_DIR, { recursive: true });
 
 interface TemplateDef {
@@ -201,9 +209,17 @@ async function generate() {
     });
 
     // Save DOCX
-    const uint8 = await Packer.toBuffer(doc);
-    const buffer = Buffer.from(uint8);
+    // Use Base64 to ensure no binary-to-string corruption happens during generation
+    const base64 = await Packer.toBase64String(doc);
+    const buffer = Buffer.from(base64, 'base64');
     
+    // Proactive Corruption Check
+    if (buffer.toString('hex').includes('efbfbd')) {
+      console.error(`!!! CRITICAL CORRUPTION in ${t.id} after generation! Binary contains UTF-8 replacement chars.`);
+      console.error(`Base64 length: ${base64.length}, Buffer length: ${buffer.length}`);
+      process.exit(1);
+    }
+
     // Safety check: DOCX must start with PK signature
     if (buffer[0] !== 0x50 || buffer[1] !== 0x4B) {
       throw new Error(`Generated invalid DOCX for ${t.id}. Signature: ${buffer.slice(0, 4).toString('hex')}`);
@@ -217,6 +233,11 @@ async function generate() {
     const verify = fs.readFileSync(fullPath);
     if (verify.length !== buffer.length) {
       throw new Error(`Disk write corruption for ${fileName}. Expected ${buffer.length}, got ${verify.length}`);
+    }
+    
+    if (verify.toString('hex').includes('efbfbd')) {
+      console.error(`!!! CRITICAL CORRUPTION in ${t.id} after writing to disk!`);
+      process.exit(1);
     }
 
     // Save Metadata
