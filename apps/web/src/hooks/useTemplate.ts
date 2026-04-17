@@ -29,8 +29,18 @@ export const useTemplateVersions = (templateId: string | undefined) => {
 
 export const useGeneratePreview = () => {
   return useMutation({
-    mutationFn: async ({ templateId, versionId, caseId, outputFormat }: { templateId: string; versionId: string; caseId: string; outputFormat?: string }) => {
-      const { data } = await api.post<GeneratedDocument>(`/templates/${templateId}/versions/${versionId}/preview`, { caseId, outputFormat });
+    mutationFn: async ({ templateId, versionId, caseId, outputFormat, customVariables }: { 
+      templateId: string; 
+      versionId: string; 
+      caseId?: string; 
+      outputFormat?: string;
+      customVariables?: Record<string, any>;
+    }) => {
+      const { data } = await api.post<GeneratedDocument>(`/templates/${templateId}/versions/${versionId}/preview`, { 
+        caseId, 
+        outputFormat,
+        customVariables,
+      });
       return data;
     },
   });
@@ -38,8 +48,18 @@ export const useGeneratePreview = () => {
 
 export const useGenerateFinal = () => {
   return useMutation({
-    mutationFn: async ({ templateId, versionId, caseId, outputFormat }: { templateId: string; versionId: string; caseId: string; outputFormat?: string }) => {
-      const { data } = await api.post<GeneratedDocument>(`/templates/${templateId}/versions/${versionId}/generate`, { caseId, outputFormat });
+    mutationFn: async ({ templateId, versionId, caseId, outputFormat, customVariables }: { 
+      templateId: string; 
+      versionId: string; 
+      caseId?: string; 
+      outputFormat?: string;
+      customVariables?: Record<string, any>;
+    }) => {
+      const { data } = await api.post<GeneratedDocument>(`/templates/${templateId}/versions/${versionId}/generate`, { 
+        caseId, 
+        outputFormat,
+        customVariables,
+      });
       return data;
     },
   });
@@ -61,6 +81,22 @@ export const useGeneratedDocument = (id: string | undefined) => {
       }
       return 2000; // Poll every 2 seconds
     },
+  });
+};
+
+export const useVersionDocuments = (templateId: string, versionId: string) => {
+  return useQuery({
+    queryKey: ['templates', templateId, 'versions', versionId, 'documents'],
+    queryFn: async () => {
+      const { data } = await api.get<GeneratedDocument[]>(`/templates/${templateId}/versions/${versionId}/documents`);
+      return data;
+    },
+    enabled: !!templateId && !!versionId,
+    refetchInterval: (query) => {
+      const docs = query.state.data;
+      const hasRunning = docs?.some(d => d.status === 'QUEUED' || d.status === 'PROCESSING');
+      return hasRunning ? 3000 : false;
+    }
   });
 };
 

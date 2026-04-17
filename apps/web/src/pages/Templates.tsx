@@ -93,8 +93,8 @@ export default function Templates() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Document Templates</h1>
-          <p className="text-gray-500 mt-1 text-sm">Manage and version your legal document templates.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Template Management</h1>
+          <p className="text-gray-500 mt-1 text-sm">Configure and version the legal templates used for document generation across all cases.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => refetch()}>

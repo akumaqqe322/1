@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, Files, ShieldCheck, Settings } from 'lucide-react';
+import { LayoutDashboard, FileText, Files, ShieldCheck, Settings, Briefcase } from 'lucide-react';
 import { UserRole } from '../types/auth';
 
 export interface NavItem {
@@ -10,21 +10,21 @@ export interface NavItem {
 
 export const navigationConfig: NavItem[] = [
   {
-    title: 'Dashboard',
-    href: '/',
-    icon: LayoutDashboard,
-    roles: [UserRole.ADMIN, UserRole.LAWYER, UserRole.PARTNER],
-  },
-  {
-    title: 'Templates',
-    href: '/templates',
-    icon: FileText,
+    title: 'Cases',
+    href: '/cases',
+    icon: Briefcase,
     roles: [UserRole.ADMIN, UserRole.LAWYER, UserRole.PARTNER],
   },
   {
     title: 'Documents',
     href: '/documents',
     icon: Files,
+    roles: [UserRole.ADMIN, UserRole.LAWYER, UserRole.PARTNER],
+  },
+  {
+    title: 'Management',
+    href: '/templates',
+    icon: FileText,
     roles: [UserRole.ADMIN, UserRole.LAWYER, UserRole.PARTNER],
   },
   {

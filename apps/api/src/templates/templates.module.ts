@@ -7,6 +7,7 @@ import { DocumentGenerationQueueService } from './document-generation-queue.serv
 import { CasesService } from '../cases/cases.service';
 import { TemplatesController } from './templates.controller';
 import { TemplateVersionsController } from './template-versions.controller';
+import { CasesModule } from '../cases/cases.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { StorageModule } from '../storage/storage.module';
 import { AuditModule } from '../audit/audit.module';
@@ -17,6 +18,7 @@ import { TEMPLATE_VALIDATION_QUEUE, DOCUMENT_GENERATION_QUEUE } from './constant
     PrismaModule,
     StorageModule,
     AuditModule,
+    CasesModule,
     BullModule.registerQueue(
       { name: TEMPLATE_VALIDATION_QUEUE },
       { name: DOCUMENT_GENERATION_QUEUE },
@@ -28,7 +30,6 @@ import { TEMPLATE_VALIDATION_QUEUE, DOCUMENT_GENERATION_QUEUE } from './constant
     TemplateVersionsService,
     TemplateValidationQueueService,
     DocumentGenerationQueueService,
-    CasesService,
   ],
   exports: [TemplatesService, TemplateVersionsService],
 })

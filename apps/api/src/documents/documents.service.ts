@@ -18,6 +18,35 @@ export class DocumentsService {
             code: true,
           },
         },
+        requestedBy: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  async findByCaseId(caseId: string) {
+    return this.prisma.generatedDocument.findMany({
+      where: { caseId },
+      include: {
+        template: {
+          select: {
+            name: true,
+            code: true,
+          },
+        },
+        requestedBy: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',

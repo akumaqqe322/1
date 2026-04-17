@@ -26,11 +26,43 @@ export interface DocumentMetadata {
 
 export interface CaseData {
   id: string;
-  clientName: string;
+  clientId: string;
+  clientFullName: string;
+  clientShortName: string;
+  organization?: string;
   caseNumber: string;
-  courtName: string;
-  filingDate: string;
+  caseType: string;
+  status: string;
+  amount?: number;
+  currency?: string;
+  issueDate: string;
+  dueDate?: string;
+  courtName?: string;
+  filingDate?: string;
+  contractNumber?: string;
   description: string;
+  metadata?: Record<string, any>;
+}
+
+export interface GenerationContext {
+  case: {
+    id: string;
+    number: string;
+    type: string;
+    status: string;
+    amount?: number;
+    currency?: string;
+    issueDate: string;
+    dueDate?: string;
+    contractNumber?: string;
+  };
+  client: {
+    id: string;
+    name: string;
+    shortName: string;
+    organization?: string;
+  };
+  variables: Record<string, any>; // Flattened variables for template injection
 }
 
 export const QUEUE_NAME = 'document-generation';

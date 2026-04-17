@@ -10,6 +10,7 @@ import { UsersModule } from './users/users.module';
 import { RolesModule } from './roles/roles.module';
 import { TemplatesModule } from './templates/templates.module';
 import { DocumentsModule } from './documents/documents.module';
+import { CasesModule } from './cases/cases.module';
 import { AuditModule } from './audit/audit.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 
@@ -32,6 +33,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     RolesModule,
     TemplatesModule,
     DocumentsModule,
+    CasesModule,
     AuditModule,
     DashboardModule,
   ],

@@ -126,11 +126,19 @@ export default function Settings() {
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Database</p>
-                <p className="font-medium text-gray-900">SQLite (Local)</p>
+                <p className="font-medium text-gray-900">PostgreSQL (Production Ready)</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Storage</p>
-                <p className="font-medium text-gray-900">S3 Compatible (Minio)</p>
+                <p className="font-medium text-gray-900">S3 Compatible Storage</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Background Jobs</p>
+                <p className="font-medium text-gray-900">Redis / BullMQ</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Generation Engine</p>
+                <p className="font-medium text-gray-900">NestJS / worker-threads</p>
               </div>
             </div>
           </CardContent>

@@ -10,7 +10,7 @@ export class DocumentGenerationQueueService {
     @InjectQueue(DOCUMENT_GENERATION_QUEUE) private generationQueue: Queue,
   ) {}
 
-  async enqueuePreview(templateId: string, versionId: string, caseId: string, documentId: string, outputFormat: OutputFormat = OutputFormat.DOCX) {
+  async enqueuePreview(templateId: string, versionId: string, caseId: string | null, documentId: string, outputFormat: OutputFormat = OutputFormat.DOCX, customVariables?: Record<string, any>) {
     await this.generationQueue.add(
       DocumentGenerationJob.PREVIEW,
       {
@@ -19,6 +19,7 @@ export class DocumentGenerationQueueService {
         caseId,
         documentId,
         outputFormat,
+        customVariables,
       },
       {
         attempts: 3,
@@ -31,7 +32,7 @@ export class DocumentGenerationQueueService {
     );
   }
 
-  async enqueueFinal(templateId: string, versionId: string, caseId: string, documentId: string, outputFormat: OutputFormat = OutputFormat.DOCX) {
+  async enqueueFinal(templateId: string, versionId: string, caseId: string | null, documentId: string, outputFormat: OutputFormat = OutputFormat.DOCX, customVariables?: Record<string, any>) {
     await this.generationQueue.add(
       DocumentGenerationJob.FINAL,
       {
@@ -40,6 +41,7 @@ export class DocumentGenerationQueueService {
         caseId,
         documentId,
         outputFormat,
+        customVariables,
       },
       {
         attempts: 3,

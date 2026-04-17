@@ -135,7 +135,7 @@ export class TemplateVersionsService {
     return updatedVersion;
   }
 
-  async generatePreview(templateId: string, versionId: string, caseId: string, actorId: string, outputFormat: OutputFormat = OutputFormat.DOCX) {
+  async generatePreview(templateId: string, versionId: string, caseId: string | null, actorId: string, outputFormat: OutputFormat = OutputFormat.DOCX, customVariables?: Record<string, any>) {
     const version = await this.findById(templateId, versionId);
 
     // 1. Verify version is ready for generation
@@ -147,8 +147,12 @@ export class TemplateVersionsService {
       throw new BadRequestException(`Template version is not in a valid state (current: ${version.validationStatus})`);
     }
 
-    // 2. Verify case exists
-    await this.casesService.getCaseData(caseId);
+    // 2. Verify case exists if caseId is provided
+    if (caseId) {
+      await this.casesService.getCaseData(caseId);
+    } else if (!customVariables) {
+      throw new BadRequestException('Either caseId or customVariables must be provided');
+    }
 
     // 3. Create GeneratedDocument record and enqueue job
     const doc = await this.prisma.$transaction(async (tx) => {
@@ -164,7 +168,7 @@ export class TemplateVersionsService {
         },
       });
 
-      await this.generationQueue.enqueuePreview(templateId, versionId, caseId, doc.id, outputFormat);
+      await this.generationQueue.enqueuePreview(templateId, versionId, caseId, doc.id, outputFormat, customVariables);
 
       return doc;
     });
@@ -174,13 +178,13 @@ export class TemplateVersionsService {
       entityId: doc.id,
       action: 'PREVIEW_REQUESTED',
       actorId,
-      metadata: { templateId, versionId, caseId },
+      metadata: { templateId, versionId, caseId, hasCustomVariables: !!customVariables },
     });
 
     return doc;
   }
 
-  async generateFinal(templateId: string, versionId: string, caseId: string, actorId: string, outputFormat: OutputFormat = OutputFormat.DOCX) {
+  async generateFinal(templateId: string, versionId: string, caseId: string | null, actorId: string, outputFormat: OutputFormat = OutputFormat.DOCX, customVariables?: Record<string, any>) {
     const version = await this.findById(templateId, versionId);
 
     // 1. Verify version is ready for generation
@@ -201,8 +205,12 @@ export class TemplateVersionsService {
       throw new BadRequestException('This version is not the current published version for this template');
     }
 
-    // 3. Verify case exists
-    await this.casesService.getCaseData(caseId);
+    // 3. Verify case exists if caseId is provided
+    if (caseId) {
+      await this.casesService.getCaseData(caseId);
+    } else if (!customVariables) {
+      throw new BadRequestException('Either caseId or customVariables must be provided');
+    }
 
     // 4. Create GeneratedDocument record and enqueue job
     const doc = await this.prisma.$transaction(async (tx) => {
@@ -218,7 +226,7 @@ export class TemplateVersionsService {
         },
       });
 
-      await this.generationQueue.enqueueFinal(templateId, versionId, caseId, doc.id, outputFormat);
+      await this.generationQueue.enqueueFinal(templateId, versionId, caseId, doc.id, outputFormat, customVariables);
 
       return doc;
     });
@@ -228,7 +236,7 @@ export class TemplateVersionsService {
       entityId: doc.id,
       action: 'FINAL_GENERATION_REQUESTED',
       actorId,
-      metadata: { templateId, versionId, caseId },
+      metadata: { templateId, versionId, caseId, hasCustomVariables: !!customVariables },
     });
 
     return doc;
@@ -328,5 +336,20 @@ export class TemplateVersionsService {
     });
 
     return updatedVersion;
+  }
+
+  async findDocuments(templateId: string, versionId: string) {
+    await this.findById(templateId, versionId); // Validate existence
+    
+    return this.prisma.generatedDocument.findMany({
+      where: {
+        templateId,
+        templateVersionId: versionId,
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        requestedBy: this.userSelect,
+      },
+    });
   }
 }

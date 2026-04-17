@@ -28,25 +28,27 @@ import {
 import { TemplateVersion, TemplateVersionStatus, ValidationStatus, Template } from '../../../types/template';
 import { UserRole } from '../../../types/auth';
 import { DocumentStatus, OutputFormat } from '../../../types/document';
-import { useGeneratePreview, useGenerateFinal } from '../../../hooks/useTemplate';
+import { useGeneratePreview, useGenerateFinal, useVersionDocuments } from '../../../hooks/useTemplate';
 import { StatusBadge } from '../../../components/shared/StatusBadge';
 
 interface GenerationActionProps {
   templateId: string;
   version: TemplateVersion;
   userRole?: UserRole;
-  onSuccess: (docId: string) => void;
+  onSuccess?: (docId: string) => void;
   activeDocId: string | null;
   activeDoc: any;
 }
 
-export function PreviewAction({ templateId, version, userRole, onSuccess, activeDocId, activeDoc }: GenerationActionProps) {
+export function PreviewAction({ templateId, version, userRole, onSuccess }: Omit<GenerationActionProps, 'activeDocId' | 'activeDoc'>) {
   const [isOpen, setIsOpen] = useState(false);
   const [caseId, setCaseId] = useState("");
   const [outputFormat, setOutputFormat] = useState<OutputFormat>(OutputFormat.DOCX);
   const generatePreview = useGeneratePreview();
+  const { data: versionDocs } = useVersionDocuments(templateId, version.id);
 
-  const isThisVersionActive = activeDocId && activeDoc?.templateVersionId === version.id;
+  // Get the most recent preview request for this version
+  const activeDoc = versionDocs?.find(d => d.generationType === 'PREVIEW');
 
   const handleRequest = async () => {
     if (!caseId) return;
@@ -57,7 +59,7 @@ export function PreviewAction({ templateId, version, userRole, onSuccess, active
         caseId,
         outputFormat,
       });
-      onSuccess(doc.id);
+      onSuccess?.(doc.id);
       setIsOpen(false);
     } catch (error) {
       console.error("Failed to request preview", error);
@@ -69,7 +71,7 @@ export function PreviewAction({ templateId, version, userRole, onSuccess, active
   const isValid = version.validationStatus === ValidationStatus.VALID;
   const canPreview = isAuthorized && hasFile && isValid;
 
-  if (isThisVersionActive && activeDoc) {
+  if (activeDoc) {
     return (
       <div className="flex flex-col items-end gap-1">
         <StatusBadge 
@@ -185,13 +187,15 @@ interface FinalActionProps extends GenerationActionProps {
   template: Template;
 }
 
-export function FinalAction({ templateId, template, version, userRole, onSuccess, activeDocId, activeDoc }: FinalActionProps) {
+export function FinalAction({ templateId, template, version, userRole, onSuccess }: Omit<FinalActionProps, 'activeDocId' | 'activeDoc'>) {
   const [isOpen, setIsOpen] = useState(false);
   const [caseId, setCaseId] = useState("");
   const [outputFormat, setOutputFormat] = useState<OutputFormat>(OutputFormat.DOCX);
   const generateFinal = useGenerateFinal();
+  const { data: versionDocs } = useVersionDocuments(templateId, version.id);
 
-  const isThisVersionActive = activeDocId && activeDoc?.templateVersionId === version.id;
+  // Get the most recent final generation request for this version
+  const activeDoc = versionDocs?.find(d => d.generationType === 'FINAL');
 
   const handleRequest = async () => {
     if (!caseId) return;
@@ -202,7 +206,7 @@ export function FinalAction({ templateId, template, version, userRole, onSuccess
         caseId,
         outputFormat,
       });
-      onSuccess(doc.id);
+      onSuccess?.(doc.id);
       setIsOpen(false);
     } catch (error) {
       console.error("Failed to request final generation", error);
@@ -215,7 +219,7 @@ export function FinalAction({ templateId, template, version, userRole, onSuccess
   const isValid = version.validationStatus === ValidationStatus.VALID;
   const canGenerate = isAuthorized && isPublished && hasFile && isValid;
 
-  if (isThisVersionActive && activeDoc) {
+  if (activeDoc) {
     return (
       <div className="flex flex-col items-end gap-1">
         <StatusBadge 

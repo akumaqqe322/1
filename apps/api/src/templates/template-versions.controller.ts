@@ -64,7 +64,7 @@ export class TemplateVersionsController {
     @Body() dto: GeneratePreviewDto,
     @User() user: any,
   ) {
-    return this.versionsService.generatePreview(templateId, versionId, dto.caseId, user.id, dto.outputFormat);
+    return this.versionsService.generatePreview(templateId, versionId, dto.caseId || null, user.id, dto.outputFormat, dto.customVariables);
   }
 
   @Post(':versionId/generate')
@@ -75,7 +75,7 @@ export class TemplateVersionsController {
     @Body() dto: GenerateFinalDto,
     @User() user: any,
   ) {
-    return this.versionsService.generateFinal(templateId, versionId, dto.caseId, user.id, dto.outputFormat);
+    return this.versionsService.generateFinal(templateId, versionId, dto.caseId || null, user.id, dto.outputFormat, dto.customVariables);
   }
 
   @Post(':versionId/publish')
@@ -96,5 +96,13 @@ export class TemplateVersionsController {
     @User() user: any,
   ) {
     return this.versionsService.archive(templateId, versionId, user.id);
+  }
+
+  @Get(':versionId/documents')
+  findDocuments(
+    @Param('templateId') templateId: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.versionsService.findDocuments(templateId, versionId);
   }
 }

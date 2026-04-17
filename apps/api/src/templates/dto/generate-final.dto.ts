@@ -3,8 +3,11 @@ import { OutputFormat } from '@prisma/client';
 
 export class GenerateFinalDto {
   @IsString()
-  @IsNotEmpty()
-  caseId: string;
+  @IsOptional()
+  caseId?: string;
+
+  @IsOptional()
+  customVariables?: Record<string, any>;
 
   @IsEnum(OutputFormat)
   @IsOptional()

@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { 
   useTemplate, 
   useTemplateVersions, 
   useGeneratedDocument,
+  useDeleteTemplate,
 } from "../hooks/useTemplate";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -17,6 +18,17 @@ import {
 } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Separator } from "../components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../components/ui/alert-dialog";
 import { StatusBadge, PageState } from "../components/shared/StatusBadge";
 import { 
   ArrowLeft, 
@@ -27,21 +39,30 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { PreviewAction, FinalAction } from "../components/templates/details/GenerationActions";
 import { CreateVersionDialog } from "../components/templates/details/CreateVersionDialog";
-import { VersionHistoryTable } from "../components/templates/details/VersionHistoryTable";
+import { VersionManagement } from "../components/templates/details/VersionManagement";
 
 export default function TemplateDetails() {
   const { user } = useAuth();
   const { templateId } = useParams<{ templateId: string }>();
   const { data: template, isLoading: isTemplateLoading, isError: isTemplateError } = useTemplate(templateId);
+  const deleteTemplate = useDeleteTemplate();
+  const navigate = useNavigate();
   const { data: versions, isLoading: isVersionsLoading } = useTemplateVersions(templateId);
-  const [activeDocId, setActiveDocId] = useState<string | null>(null);
-  const { data: activeDoc } = useGeneratedDocument(activeDocId || undefined);
-  
-  const [activeFinalDocId, setActiveFinalDocId] = useState<string | null>(null);
-  const { data: activeFinalDoc } = useGeneratedDocument(activeFinalDocId || undefined);
+
+  const handleDelete = async () => {
+    if (!templateId) return;
+    try {
+      await deleteTemplate.mutateAsync(templateId);
+      navigate('/templates');
+    } catch (error) {
+      console.error("Failed to delete template", error);
+    }
+  };
   
   if (isTemplateLoading) {
     return (
@@ -97,6 +118,38 @@ export default function TemplateDetails() {
             <span>{template.caseType}</span>
           </div>
         </div>
+
+        {user?.role === 'ADMIN' && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
+                <Trash2 className="mr-2 h-4 w-4" /> Delete Template
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete the template "{template.name}" and all its versions and generated documents. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleDelete}
+                  className="bg-red-600 text-white hover:bg-red-700"
+                  disabled={deleteTemplate.isPending}
+                >
+                  {deleteTemplate.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Delete"
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
@@ -105,13 +158,13 @@ export default function TemplateDetails() {
             value="overview" 
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-gray-900 data-[state=active]:bg-transparent px-0 py-2 text-sm font-medium text-gray-500 data-[state=active]:text-gray-900 transition-all"
           >
-            Overview
+            General Details
           </TabsTrigger>
           <TabsTrigger 
             value="history" 
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-gray-900 data-[state=active]:bg-transparent px-0 py-2 text-sm font-medium text-gray-500 data-[state=active]:text-gray-900 transition-all"
           >
-            Version History
+            Versions & Controls
           </TabsTrigger>
         </TabsList>
 
@@ -194,26 +247,23 @@ export default function TemplateDetails() {
                     <Separator />
                     
                     <div className="space-y-3">
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Quick Actions</p>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Internal Testing</p>
                       <div className="flex flex-col gap-2">
                         <PreviewAction 
                           templateId={template.id}
                           version={template.publishedVersion}
                           userRole={user?.role}
-                          onSuccess={setActiveDocId}
-                          activeDocId={activeDocId}
-                          activeDoc={activeDoc}
                         />
                         <FinalAction 
                           templateId={template.id}
                           template={template}
                           version={template.publishedVersion}
                           userRole={user?.role}
-                          onSuccess={setActiveFinalDocId}
-                          activeDocId={activeFinalDocId}
-                          activeDoc={activeFinalDoc}
                         />
                       </div>
+                      <p className="text-[10px] text-gray-400 italic mt-1">
+                        Use for configuration validation. Operational generation should start from the Cases workflow.
+                      </p>
                     </div>
                   </div>
                 ) : (
@@ -229,34 +279,12 @@ export default function TemplateDetails() {
         </TabsContent>
 
         <TabsContent value="history" className="mt-0">
-          <Card className="border shadow-sm overflow-hidden">
-            <CardHeader className="border-b bg-gray-50/50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <History className="h-4 w-4 text-gray-400" />
-                    Version History
-                  </CardTitle>
-                  <CardDescription>Complete audit trail of all template versions.</CardDescription>
-                </div>
-                <CreateVersionDialog templateId={templateId!} userRole={user?.role} />
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <VersionHistoryTable 
-                template={template}
-                versions={versions || []}
-                isLoading={isVersionsLoading}
-                userRole={user?.role}
-                activeDocId={activeDocId}
-                activeDoc={activeDoc}
-                onDocSuccess={setActiveDocId}
-                activeFinalDocId={activeFinalDocId}
-                activeFinalDoc={activeFinalDoc}
-                onFinalDocSuccess={setActiveFinalDocId}
-              />
-            </CardContent>
-          </Card>
+          <VersionManagement 
+            template={template}
+            versions={versions || []}
+            isLoading={isVersionsLoading}
+            userRole={user?.role}
+          />
         </TabsContent>
       </Tabs>
     </div>

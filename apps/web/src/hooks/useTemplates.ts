@@ -10,7 +10,7 @@ export interface CreateTemplateInput {
   status: TemplateStatus;
 }
 
-export const useTemplates = (filters: TemplateFilters) => {
+export const useTemplates = (filters: TemplateFilters = {}) => {
   return useQuery({
     queryKey: ['templates', filters],
     queryFn: async () => {

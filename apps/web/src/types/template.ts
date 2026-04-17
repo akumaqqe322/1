@@ -48,6 +48,7 @@ export interface Template {
   status: TemplateStatus;
   publishedVersionId: string | null;
   publishedVersion?: TemplateVersion | null;
+  versions?: TemplateVersion[];
   createdAt: string;
   updatedAt: string;
   createdBy?: UserSummary;

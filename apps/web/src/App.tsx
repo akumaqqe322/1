@@ -4,6 +4,8 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { AppLayout } from "./components/layout/AppLayout";
 import { LoginPage } from "./pages/LoginPage";
+import CaseList from "./pages/CaseList";
+import CaseDetails from "./pages/CaseDetails";
 import Dashboard from "./pages/Dashboard";
 import Templates from "./pages/Templates";
 import TemplateDetails from "./pages/TemplateDetails";
@@ -34,7 +36,11 @@ export default function App() {
                 <AppLayout />
               </ProtectedRoute>
             }>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={<CaseList />} />
+              <Route path="/cases" element={<CaseList />} />
+              <Route path="/cases/:caseId" element={<CaseDetails />} />
+              
+              <Route path="/dashboard" element={<Dashboard />} />
               
               <Route path="/templates" element={
                 <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.LAWYER]}>

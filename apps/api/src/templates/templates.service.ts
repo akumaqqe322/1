@@ -85,6 +85,14 @@ export class TemplatesService {
             versionNumber: true,
           },
         },
+        versions: {
+          select: {
+            id: true,
+            status: true,
+            versionNumber: true,
+            validationStatus: true,
+          },
+        },
       },
     });
   }

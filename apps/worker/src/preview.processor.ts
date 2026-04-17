@@ -31,7 +31,7 @@ export async function startPreviewWorker() {
       return;
     }
 
-    const { templateId, versionId, caseId, documentId, outputFormat = OutputFormat.DOCX } = job.data;
+    const { templateId, versionId, caseId, documentId, outputFormat = OutputFormat.DOCX, customVariables } = job.data;
     console.log(`Generating preview for document: ${documentId} (Format: ${outputFormat})`);
 
     try {
@@ -41,7 +41,7 @@ export async function startPreviewWorker() {
         data: { status: DocumentStatus.PROCESSING },
       });
 
-      // 2. Fetch version and case data
+      // 2. Fetch version and context data
       const version = await prisma.templateVersion.findUnique({
         where: { id: versionId },
       });
@@ -50,7 +50,16 @@ export async function startPreviewWorker() {
         throw new Error('Template version or storage path not found');
       }
 
-      const caseData = await casesService.getCaseData(caseId);
+      // Determine template variables (normalized context)
+      let variables = customVariables;
+      if (!variables && caseId) {
+        const context = await casesService.getGenerationContext(caseId);
+        variables = context.variables;
+      }
+
+      if (!variables) {
+        throw new Error('No generation variables provided or found');
+      }
 
       // 3. Load template from S3
       const templateResponse = await s3Client.send(new GetObjectCommand({
@@ -70,7 +79,7 @@ export async function startPreviewWorker() {
         linebreaks: true,
       });
 
-      doc.render(caseData);
+      doc.render(variables);
       let outputBuffer = doc.getZip().generate({ type: 'nodebuffer' });
       let contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
       let extension = 'docx';

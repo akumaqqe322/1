@@ -11,7 +11,7 @@ import {
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
-import { Loader2, Upload, CheckCircle2 } from 'lucide-react';
+import { Loader2, Upload, CheckCircle2, AlertCircle } from 'lucide-react';
 import { TemplateVersion, TemplateVersionStatus } from '../../../types/template';
 import { UserRole } from '../../../types/auth';
 import { useUploadTemplateFile, useTemplateVersions } from '../../../hooks/useTemplate';
@@ -26,16 +26,18 @@ interface UploadActionProps {
 export function UploadAction({ templateId, version, userRole }: UploadActionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const uploadFile = useUploadTemplateFile();
   const { refetch: refetchVersions } = useTemplateVersions(templateId);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setErrorMessage(null);
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
       if (selectedFile.name.endsWith('.docx')) {
         setFile(selectedFile);
       } else {
-        alert("Please select a .docx file");
+        setErrorMessage("Please select a valid .docx file");
         e.target.value = "";
       }
     }
@@ -43,6 +45,7 @@ export function UploadAction({ templateId, version, userRole }: UploadActionProp
 
   const handleUpload = async () => {
     if (!file) return;
+    setErrorMessage(null);
     try {
       await uploadFile.mutateAsync({
         templateId,
@@ -54,6 +57,7 @@ export function UploadAction({ templateId, version, userRole }: UploadActionProp
       setFile(null);
     } catch (error) {
       console.error("Failed to upload file", error);
+      setErrorMessage("Upload failed. Please try again or check server logs.");
     }
   };
 
@@ -98,7 +102,13 @@ export function UploadAction({ templateId, version, userRole }: UploadActionProp
               onChange={handleFileChange}
               className="bg-gray-50/50"
             />
-            {file && (
+            {errorMessage && (
+              <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+                <AlertCircle className="h-3 w-3" />
+                {errorMessage}
+              </p>
+            )}
+            {file && !errorMessage && (
               <p className="text-xs text-green-600 flex items-center gap-1">
                 <CheckCircle2 className="h-3 w-3" />
                 {file.name} selected

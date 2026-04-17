@@ -51,17 +51,16 @@ export function PublishAction({ templateId, version, userRole }: LifecycleAction
           size="icon" 
           className="h-8 w-8 text-gray-400 hover:text-green-600 hover:border-green-200 hover:bg-green-50"
           disabled={!canPublish}
-          title={!isValid ? "Version must be valid to publish" : "Publish Version"}
+          title={!isValid ? "Version must be valid to promote" : "Promote to LIVE"}
         >
           <Rocket className="h-3.5 w-3.5" />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Publish Version v{version.versionNumber}</DialogTitle>
+          <DialogTitle>Promote Version v{version.versionNumber} to LIVE</DialogTitle>
           <DialogDescription>
-            This will make this version the active template for all new document generations. 
-            Any previously published version will be archived.
+            This action promotes this draft to the production environment. It will be used for all final document generations across all active cases.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="mt-4">
@@ -76,10 +75,10 @@ export function PublishAction({ templateId, version, userRole }: LifecycleAction
             {publish.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Publishing...
+                Promoting...
               </>
             ) : (
-              "Confirm Publish"
+              "Confirm Promotion"
             )}
           </Button>
         </DialogFooter>

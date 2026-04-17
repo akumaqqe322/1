@@ -25,14 +25,25 @@ interface StatusBadgeProps {
 export function StatusBadge({ status, type, className, showIcon = false, label, children }: StatusBadgeProps) {
   let badgeClass = "bg-gray-50 text-gray-600 border-gray-200";
   let Icon = null;
+  let statusText = status;
 
   switch (type) {
     case 'template':
       if (status === TemplateStatus.ACTIVE) badgeClass = "bg-green-50 text-green-700 border-green-200";
       break;
     case 'version':
-      if (status === TemplateVersionStatus.PUBLISHED) badgeClass = "bg-green-50 text-green-700 border-green-200";
-      if (status === TemplateVersionStatus.DRAFT) badgeClass = "bg-blue-50 text-blue-700 border-blue-200";
+      if (status === TemplateVersionStatus.PUBLISHED) {
+        badgeClass = "bg-green-50 text-green-700 border-green-200";
+        statusText = "LIVE";
+      }
+      if (status === TemplateVersionStatus.DRAFT) {
+        badgeClass = "bg-blue-50 text-blue-700 border-blue-200";
+        statusText = "DRAFT";
+      }
+      if (status === TemplateVersionStatus.ARCHIVED) {
+        badgeClass = "bg-gray-50 text-gray-700 border-gray-200";
+        statusText = "ARCHIVED";
+      }
       break;
     case 'validation':
       if (status === ValidationStatus.VALID) {
@@ -80,7 +91,7 @@ export function StatusBadge({ status, type, className, showIcon = false, label, 
         )}
       >
         {label && <span className="mr-1 opacity-70">{label}:</span>}
-        {status}
+        {statusText}
       </Badge>
       {children}
     </div>
