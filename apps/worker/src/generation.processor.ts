@@ -145,6 +145,7 @@ export async function startGenerationWorker() {
       const keyPrefix = isPreview ? 'previews' : 'documents';
       const storagePath = `${keyPrefix}/${documentId}.${extension}`;
       
+      console.log(`Uploading generated document to S3: ${storagePath}`);
       await s3Client.send(new PutObjectCommand({
         Bucket: bucket,
         Key: storagePath,
@@ -153,38 +154,38 @@ export async function startGenerationWorker() {
       }));
 
       // 7. Update document status to COMPLETED
-      // Final existence check before completion
-      const finalCheck = await prisma.generatedDocument.findUnique({ where: { id: documentId } });
-      if (finalCheck) {
-        await prisma.generatedDocument.update({
-          where: { id: documentId },
-          data: {
-            status: DocumentStatus.COMPLETED,
-            storagePath: storagePath,
-            completedAt: new Date(),
-          },
-        });
+      // Note: We use updateMany + id check to prevent P2025 if record was deleted by user
+      const updateResult = await prisma.generatedDocument.updateMany({
+        where: { id: documentId },
+        data: {
+          status: DocumentStatus.COMPLETED,
+          storagePath: storagePath,
+          completedAt: new Date(),
+        },
+      });
+
+      if (updateResult.count === 0) {
+        console.warn(`GeneratedDocument ${documentId} record not found during completion update. It may have been deleted.`);
       }
 
-      console.log(`${typeLabel} document generated successfully: ${documentId}`);
-    } catch (error) {
+      console.log(`${typeLabel} document generated and stored successfully: ${documentId}`);
+    } catch (error: any) {
       console.error(`${typeLabel} generation failed for document: ${documentId}`, error);
+      
       try {
-        // Defensive status update
-        const errorCheck = await prisma.generatedDocument.findUnique({ where: { id: documentId } });
-        if (errorCheck) {
-          await prisma.generatedDocument.update({
-            where: { id: documentId },
-            data: {
-              status: DocumentStatus.FAILED,
-              errorMessage: error instanceof Error ? error.message : String(error),
-            },
-          });
-        }
+        // Persist failure to database so frontend can show why it failed
+        await prisma.generatedDocument.updateMany({
+          where: { id: documentId },
+          data: {
+            status: DocumentStatus.FAILED,
+            errorMessage: error.message || String(error),
+          },
+        });
       } catch (dbError) {
-        console.error('Failed to update document status in DB', dbError);
+        console.error('Failed to log generation error to database:', dbError);
       }
-      // Re-throw the error so that the Bull job is marked as FAILED in the queue management UI
+
+      // CRITICAL: Re-throw the error so BullMQ marks the job as FAILED
       throw error;
     }
   }, {

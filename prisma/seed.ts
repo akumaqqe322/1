@@ -75,7 +75,7 @@ async function main() {
   // Demo Templates Setup
   const demoUser = await prisma.user.findUnique({ where: { email: 'zFlexxxPlay@gmail.com' } });
   if (demoUser) {
-    const { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand } = await import('@aws-sdk/client-s3');
+    const { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand } = await import('@aws-sdk/client-s3');
     const fs = await import('fs');
     const path = await import('path');
     
@@ -185,7 +185,7 @@ async function main() {
           const getResponse = await s3Client.send(new GetObjectCommand({
             Bucket: BUCKET,
             Key: storagePath,
-          }));
+          })) as any;
           const { streamToBuffer } = await import('@app/shared');
           const downloaded = await streamToBuffer(getResponse.Body!);
           

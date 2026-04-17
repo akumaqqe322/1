@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Template, TemplateVersion } from '../types/template';
-import { GeneratedDocument } from '../types/document';
+import { GeneratedDocument, DocumentStatus } from '../types/document';
 
 export const useTemplate = (id: string | undefined) => {
   return useQuery({
@@ -76,7 +76,7 @@ export const useGeneratedDocument = (id: string | undefined) => {
     enabled: !!id,
     refetchInterval: (query) => {
       const doc = query.state.data;
-      if (doc && (doc.status === 'COMPLETED' || doc.status === 'FAILED')) {
+      if (doc && (doc.status === DocumentStatus.COMPLETED || doc.status === DocumentStatus.FAILED)) {
         return false;
       }
       return 2000; // Poll every 2 seconds
@@ -94,7 +94,7 @@ export const useVersionDocuments = (templateId: string, versionId: string) => {
     enabled: !!templateId && !!versionId,
     refetchInterval: (query) => {
       const docs = query.state.data;
-      const hasRunning = docs?.some(d => d.status === 'QUEUED' || d.status === 'PROCESSING');
+      const hasRunning = docs?.some(d => d.status === DocumentStatus.QUEUED || d.status === DocumentStatus.PROCESSING);
       return hasRunning ? 3000 : false;
     }
   });
