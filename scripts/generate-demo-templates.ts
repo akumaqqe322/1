@@ -182,7 +182,7 @@ const templates: TemplateDef[] = [
   }
 ];
 
-async function generate() {
+export async function generateTemplates() {
   console.log('--- Generating Demo Templates ---');
 
   for (const t of templates) {
@@ -267,7 +267,10 @@ async function generate() {
   console.log('Templates generated successfully in demo/templates/');
 }
 
-generate().catch(err => {
-  console.error('Generation failed:', err);
-  process.exit(1);
-});
+// Only run if called directly
+if (process.argv[1] && (process.argv[1].endsWith('generate-demo-templates.ts') || process.argv[1].endsWith('generate-demo-templates.js'))) {
+  generateTemplates().catch(err => {
+    console.error('Generation failed:', err);
+    process.exit(1);
+  });
+}

@@ -5,6 +5,7 @@ import * as fsPromises from 'node:fs/promises';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { Buffer } from 'node:buffer';
+import { generateTemplates } from '../scripts/generate-demo-templates';
 
 const prisma = new PrismaClient();
 
@@ -116,6 +117,12 @@ async function main() {
   // Demo Templates Setup
   const demoUser = await prisma.user.findUnique({ where: { email: 'zFlexxxPlay@gmail.com' } });
   if (demoUser) {
+    // 1. Generate fresh templates
+    await generateTemplates().catch(err => {
+      console.error('Failed to generate templates:', err);
+      process.exit(1);
+    });
+
     const s3Client = new S3Client({
       endpoint: process.env.S3_ENDPOINT || 'http://minio:9000',
       region: 'us-east-1',
@@ -290,8 +297,6 @@ async function main() {
           process.exit(1); 
         }
       }
-    } else {
-      console.warn('Demo templates directory not found. Please run "npx tsx scripts/generate-demo-templates.ts" first.');
     }
   }
 
