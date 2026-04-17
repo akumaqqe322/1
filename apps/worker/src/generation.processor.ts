@@ -88,7 +88,8 @@ export async function startGenerationWorker() {
       let extension = 'docx';
 
       try {
-        const zip = new PizZip(templateBuffer);
+        // Convert Uint8Array to Node.js Buffer for better PizZip compatibility
+        const zip = new PizZip(Buffer.from(templateBuffer));
         const doc = new Docxtemplater(zip, {
           paragraphLoop: true,
           linebreaks: true,
@@ -110,8 +111,9 @@ export async function startGenerationWorker() {
           }
         }
       } catch (renderError) {
+        console.error(`Rendering engine error for document ${documentId}:`, renderError);
         const message = (renderError instanceof Error && renderError.message.includes("Corrupted zip"))
-          ? "The template file is corrupted or not a valid Word (.docx) document." 
+          ? "The template file is corrupted or not a valid Word (.docx) document (missing ZIP central directory or end of file marker)." 
           : (renderError instanceof Error ? renderError.message : String(renderError));
         throw new Error(`[RENDER_ERROR] Document rendering failed: ${message}`);
       }

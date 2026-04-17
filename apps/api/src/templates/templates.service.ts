@@ -169,8 +169,29 @@ export class TemplatesService {
   async delete(id: string, actorId: string) {
     const template = await this.findById(id);
 
-    await this.prisma.template.delete({
-      where: { id },
+    // Using a transaction to ensure all related data is cleaned up properly
+    // even if foreign key constraints are set to RESTRICT in the database.
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Clear circular reference from Template to TemplateVersion (publishedVersion)
+      await tx.template.update({
+        where: { id },
+        data: { publishedVersionId: null },
+      });
+
+      // 2. Delete generated documents first (leaves)
+      await tx.generatedDocument.deleteMany({
+        where: { templateId: id },
+      });
+
+      // 3. Delete template versions (inner nodes)
+      await tx.templateVersion.deleteMany({
+        where: { templateId: id },
+      });
+
+      // 4. Finally delete the template (root)
+      await tx.template.delete({
+        where: { id },
+      });
     });
 
     await this.auditService.record({
