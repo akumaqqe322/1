@@ -1,7 +1,8 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, HttpStatus } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma/prisma.service';
 import { ROLES_KEY } from './roles.decorator';
+import { DomainException, ErrorCode } from '../common/exceptions/domain-exception';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -44,7 +45,11 @@ export class RolesGuard implements CanActivate {
     const userId = Array.isArray(rawUserId) ? rawUserId[0] : rawUserId;
 
     if (!userId) {
-      throw new UnauthorizedException('User ID header missing');
+      throw new DomainException(
+        'User ID header (x-user-id) is missing',
+        ErrorCode.UNAUTHORIZED,
+        HttpStatus.UNAUTHORIZED
+      );
     }
 
     // Support both UUID and email for mock auth stability
@@ -54,19 +59,31 @@ export class RolesGuard implements CanActivate {
     });
 
     if (!user) {
-      throw new UnauthorizedException(`User not found: ${userId}`);
+      throw new DomainException(
+        `Identity verification failed: User not found (${userId})`,
+        ErrorCode.UNAUTHORIZED,
+        HttpStatus.UNAUTHORIZED
+      );
     }
 
     // Attach user to request for use in controllers if needed
     request.user = user;
 
     if (!user.role || !user.role.code) {
-      throw new ForbiddenException('User has no assigned role');
+      throw new DomainException(
+        'Access denied: User has no assigned role',
+        ErrorCode.FORBIDDEN_ACTION,
+        HttpStatus.FORBIDDEN
+      );
     }
 
     const hasRole = requiredRoles.includes(user.role.code);
     if (!hasRole) {
-      throw new ForbiddenException('Insufficient permissions');
+      throw new DomainException(
+        `Access denied: Insufficient permissions. Required: [${requiredRoles.join(', ')}], Current: ${user.role.code}`,
+        ErrorCode.FORBIDDEN_ACTION,
+        HttpStatus.FORBIDDEN
+      );
     }
 
     return true;

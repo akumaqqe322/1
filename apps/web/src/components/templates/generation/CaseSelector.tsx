@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useCases } from '../../../hooks/useCases';
 import { Input } from '../../ui/input';
-import { Search, Loader2, Check } from 'lucide-react';
+import { Search, Loader2, Check, AlertCircle } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { CaseData } from '@app/shared';
 
@@ -11,8 +11,18 @@ interface CaseSelectorProps {
 }
 
 export function CaseSelector({ onSelect, selectedCaseId }: CaseSelectorProps) {
-  const { data: cases, isLoading } = useCases();
+  const { data: cases, isLoading, error } = useCases();
   const [search, setSearch] = useState("");
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[200px] border border-dashed rounded-md bg-red-50/30 text-red-600 p-6 text-center">
+        <AlertCircle className="h-6 w-6 mb-2" />
+        <p className="text-xs font-bold">Failed to Load Cases</p>
+        <p className="text-[10px] opacity-70 mt-1">We couldn't reach the case database. Please try again later or use Manual Entry mode.</p>
+      </div>
+    );
+  }
 
   const filteredCases = cases?.filter(c => 
     c.caseNumber.toLowerCase().includes(search.toLowerCase()) ||

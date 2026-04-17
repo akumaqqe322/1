@@ -37,6 +37,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
       path: request.url,
       message: typeof message === 'string' ? message : (message as any).message || message,
+      code: typeof message === 'object' && message !== null ? (message as any).code : undefined,
     });
   }
 }

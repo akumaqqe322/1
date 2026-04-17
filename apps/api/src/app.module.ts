@@ -13,6 +13,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { CasesModule } from './cases/cases.module';
 import { AuditModule } from './audit/audit.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { AIModule } from './ai/ai.module';
 
 @Global()
 @Module({
@@ -36,6 +37,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     CasesModule,
     AuditModule,
     DashboardModule,
+    AIModule,
   ],
   controllers: [HealthController],
   providers: [],

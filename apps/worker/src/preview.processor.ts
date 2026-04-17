@@ -47,7 +47,7 @@ export async function startPreviewWorker() {
       });
 
       if (!version || !version.storagePath) {
-        throw new Error('Template version or storage path not found');
+        throw new Error('[TEMPLATE_DATA_ERROR] Template version or storage path record is missing in the database.');
       }
 
       // Determine template variables (normalized context)
@@ -58,43 +58,57 @@ export async function startPreviewWorker() {
       }
 
       if (!variables) {
-        throw new Error('No generation variables provided or found');
+        throw new Error('[VARIABLE_ERROR] No generation variables provided for manual input and no case associated for auto-fill.');
       }
 
       // 3. Load template from S3
-      const templateResponse = await s3Client.send(new GetObjectCommand({
-        Bucket: bucket,
-        Key: version.storagePath,
-      }));
+      let templateResponse;
+      try {
+        templateResponse = await s3Client.send(new GetObjectCommand({
+          Bucket: bucket,
+          Key: version.storagePath,
+        }));
+      } catch (s3Error) {
+        throw new Error(`[STORAGE_ERROR] Failed to fetch template from storage: ${s3Error.message}`);
+      }
 
       const templateBuffer = await templateResponse.Body?.transformToByteArray();
-      if (!templateBuffer) {
-        throw new Error('Could not read template from storage');
+      if (!templateBuffer || templateBuffer.length === 0) {
+        throw new Error('[FILE_READ_ERROR] Template file retrieved from storage is empty (0 bytes). Please re-upload the template.');
       }
 
       // 4. Render DOCX
-      const zip = new PizZip(templateBuffer);
-      const doc = new Docxtemplater(zip, {
-        paragraphLoop: true,
-        linebreaks: true,
-      });
-
-      doc.render(variables);
-      let outputBuffer = doc.getZip().generate({ type: 'nodebuffer' });
+      let outputBuffer: Buffer;
       let contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
       let extension = 'docx';
 
-      // 5. Convert to PDF if requested
-      if (outputFormat === OutputFormat.PDF) {
-        console.log(`Converting preview document ${documentId} to PDF...`);
-        try {
-          outputBuffer = await convertAsync(outputBuffer, '.pdf', undefined);
-          contentType = 'application/pdf';
-          extension = 'pdf';
-        } catch (convError) {
-          console.error(`PDF conversion failed for document: ${documentId}`, convError);
-          throw new Error(`PDF conversion failed: ${convError.message}`);
+      try {
+        const zip = new PizZip(templateBuffer);
+        const doc = new Docxtemplater(zip, {
+          paragraphLoop: true,
+          linebreaks: true,
+        });
+
+        doc.render(variables);
+        outputBuffer = doc.getZip().generate({ type: 'nodebuffer' });
+
+        // 5. Convert to PDF if requested
+        if (outputFormat === OutputFormat.PDF) {
+          console.log(`Converting preview document ${documentId} to PDF...`);
+          try {
+            outputBuffer = await convertAsync(outputBuffer, '.pdf', undefined);
+            contentType = 'application/pdf';
+            extension = 'pdf';
+          } catch (convError) {
+            console.error(`PDF conversion failed for document: ${documentId}`, convError);
+            throw new Error(`[CONVERSION_FAILED] PDF conversion failed. Ensure your server has LibreOffice installed: ${convError.message}`);
+          }
         }
+      } catch (renderError) {
+        const message = renderError.message.includes("Corrupted zip") 
+          ? "The template file is corrupted or not a valid Word (.docx) document." 
+          : renderError.message;
+        throw new Error(`[RENDER_ERROR] Document rendering failed: ${message}`);
       }
 
       // 6. Save preview to S3

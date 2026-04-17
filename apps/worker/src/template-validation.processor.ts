@@ -29,28 +29,33 @@ export async function startTemplateValidationWorker() {
       });
 
       if (!version || !version.storagePath) {
-        throw new Error('Version or storage path not found');
+        throw new Error('[DB_RECORD_MISSING] Template version or storage path record not found.');
       }
 
       // 1. Fetch from S3
-      const response = await s3Client.send(new GetObjectCommand({
-        Bucket: bucket,
-        Key: version.storagePath,
-      }));
+      let response;
+      try {
+        response = await s3Client.send(new GetObjectCommand({
+          Bucket: bucket,
+          Key: version.storagePath,
+        }));
+      } catch (s3Error) {
+        throw new Error(`[STORAGE_ERROR] Failed to fetch file from S3: ${s3Error.message}`);
+      }
 
       const body = await response.Body?.transformToByteArray();
       if (!body) {
-        throw new Error('Could not read file from storage');
+        throw new Error('[FILE_READ_ERROR] Could not read file content from storage.');
       }
 
       // 2. Basic DOCX validation (is it a valid zip?)
       try {
         const zip = await JSZip.loadAsync(body);
         if (!zip.file('word/document.xml')) {
-          throw new Error('Invalid DOCX: Missing word/document.xml');
+          throw new Error('Missing word/document.xml - the file might not be a valid Word document.');
         }
       } catch (err) {
-        throw new Error(`DOCX processing failed: ${err.message}`);
+        throw new Error(`[FORMAT_ERROR] DOCX structural validation failed: ${err.message}`);
       }
 
       // 3. Update DB

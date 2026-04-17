@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, ConflictException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
 import { TemplateQueryDto } from './dto/template-query.dto';
 import { Prisma } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { DomainException, ErrorCode } from '../common/exceptions/domain-exception';
 
 @Injectable()
 export class TemplatesService {
@@ -37,7 +38,11 @@ export class TemplatesService {
       });
       
       if (!admin) {
-        throw new InternalServerErrorException('No admin user found in the system. Please ensure the database is seeded.');
+        throw new DomainException(
+          'No admin user found in the system to act as owner. Please check environment seeding.',
+          ErrorCode.FORBIDDEN_ACTION,
+          HttpStatus.INTERNAL_SERVER_ERROR
+        );
       }
       effectiveActorId = admin.id;
     }
@@ -62,7 +67,11 @@ export class TemplatesService {
       return template;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        throw new ConflictException(`Template with code ${dto.code} already exists`);
+        throw new DomainException(
+          `Template with code ${dto.code} already exists`,
+          ErrorCode.FORBIDDEN_ACTION,
+          HttpStatus.CONFLICT
+        );
       }
       throw error;
     }
@@ -104,7 +113,11 @@ export class TemplatesService {
     });
 
     if (!template) {
-      throw new NotFoundException(`Template with ID ${id} not found`);
+      throw new DomainException(
+        `Template with ID ${id} not found`,
+        ErrorCode.TEMPLATE_NOT_FOUND,
+        HttpStatus.NOT_FOUND
+      );
     }
 
     return template;
@@ -143,7 +156,11 @@ export class TemplatesService {
       return template;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-        throw new NotFoundException(`Template with ID ${id} not found`);
+        throw new DomainException(
+          `Template with ID ${id} not found`,
+          ErrorCode.TEMPLATE_NOT_FOUND,
+          HttpStatus.NOT_FOUND
+        );
       }
       throw error;
     }

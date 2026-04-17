@@ -100,15 +100,32 @@ export function ExtractionFlow({ onDataExtracted, extractedData, setExtractedDat
             accept="application/pdf,image/*"
             onChange={handleFileUpload}
           />
-          <Button asChild variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
-            <label htmlFor="extraction-upload" className="cursor-pointer">
-              Select Document
-            </label>
-          </Button>
+          <div className="flex flex-col gap-3 w-full max-w-[200px]">
+            <Button asChild variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+              <label htmlFor="extraction-upload" className="cursor-pointer">
+                Select Document
+              </label>
+            </Button>
+            
+            {(error || fileName) && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-xs text-blue-600 hover:text-blue-700"
+                onClick={() => setExtractedData({})}
+              >
+                Skip to Manual Entry
+              </Button>
+            )}
+          </div>
+
           {error && (
-            <div className="mt-4 flex items-center gap-2 text-red-600 text-[10px] bg-red-50 px-3 py-1.5 rounded-full">
-              <AlertCircle className="h-3 w-3" />
-              {error}
+            <div className="mt-4 flex flex-col items-center gap-2 text-red-600 bg-red-50 p-4 rounded-lg border border-red-100 w-full">
+              <div className="flex items-center gap-2 text-[10px] font-bold">
+                <AlertCircle className="h-3 w-3" />
+                Extraction Error
+              </div>
+              <p className="text-[10px] text-center leading-tight">{error}</p>
             </div>
           )}
         </div>

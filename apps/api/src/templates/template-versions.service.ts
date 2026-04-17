@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTemplateVersionDto } from './dto/create-template-version.dto';
 import { TemplateVersionStatus, Prisma, ValidationStatus, GenerationType, DocumentStatus, OutputFormat } from '@prisma/client';
@@ -7,6 +7,7 @@ import { TemplateValidationQueueService } from './template-validation-queue.serv
 import { DocumentGenerationQueueService } from './document-generation-queue.service';
 import { CasesService } from '../cases/cases.service';
 import { AuditService } from '../audit/audit.service';
+import { DomainException, ErrorCode } from '../common/exceptions/domain-exception';
 
 @Injectable()
 export class TemplateVersionsService {
@@ -38,7 +39,11 @@ export class TemplateVersionsService {
     });
 
     if (!template) {
-      throw new NotFoundException(`Template with ID ${templateId} not found`);
+      throw new DomainException(
+        `Template with ID ${templateId} not found`,
+        ErrorCode.TEMPLATE_NOT_FOUND,
+        HttpStatus.NOT_FOUND
+      );
     }
 
     // Get latest version number
@@ -91,7 +96,11 @@ export class TemplateVersionsService {
     });
 
     if (!version || version.templateId !== templateId) {
-      throw new NotFoundException(`Template version with ID ${versionId} not found for template ${templateId}`);
+      throw new DomainException(
+        `Template version with ID ${versionId} not found for template ${templateId}`,
+        ErrorCode.VERSION_NOT_FOUND,
+        HttpStatus.NOT_FOUND
+      );
     }
 
     return version;
@@ -101,7 +110,10 @@ export class TemplateVersionsService {
     const version = await this.findById(templateId, versionId);
 
     if (version.status === TemplateVersionStatus.ARCHIVED) {
-      throw new BadRequestException('Cannot upload file to an archived version');
+      throw new DomainException(
+        'Cannot upload file to an archived version',
+        ErrorCode.FORBIDDEN_ACTION
+      );
     }
 
     const storagePath = `templates/${templateId}/versions/${versionId}/${file.originalname}`;
@@ -140,18 +152,27 @@ export class TemplateVersionsService {
 
     // 1. Verify version is ready for generation
     if (!version.storagePath) {
-      throw new BadRequestException('Template version has no file uploaded');
+      throw new DomainException(
+        'Template version has no file uploaded',
+        ErrorCode.TEMPLATE_FILE_MISSING
+      );
     }
 
     if (version.validationStatus !== ValidationStatus.VALID) {
-      throw new BadRequestException(`Template version is not in a valid state (current: ${version.validationStatus})`);
+      throw new DomainException(
+        `Template version is not in a valid state (current: ${version.validationStatus})`,
+        ErrorCode.TEMPLATE_NOT_VALIDATED
+      );
     }
 
     // 2. Verify case exists if caseId is provided
     if (caseId) {
       await this.casesService.getCaseData(caseId);
     } else if (!customVariables) {
-      throw new BadRequestException('Either caseId or customVariables must be provided');
+      throw new DomainException(
+        'Either caseId or customVariables must be provided',
+        ErrorCode.INCOMPLETE_CASE_DATA
+      );
     }
 
     // 3. Create GeneratedDocument record and enqueue job
@@ -189,27 +210,42 @@ export class TemplateVersionsService {
 
     // 1. Verify version is ready for generation
     if (!version.storagePath) {
-      throw new BadRequestException('Template version has no file uploaded');
+      throw new DomainException(
+        'Template version has no file uploaded',
+        ErrorCode.TEMPLATE_FILE_MISSING
+      );
     }
 
     if (version.validationStatus !== ValidationStatus.VALID) {
-      throw new BadRequestException(`Template version is not in a valid state (current: ${version.validationStatus})`);
+      throw new DomainException(
+        `Template version is not in a valid state (current: ${version.validationStatus})`,
+        ErrorCode.TEMPLATE_NOT_VALIDATED
+      );
     }
 
     // 2. Verify version is PUBLISHED and is the current published version of the template
     if (version.status !== TemplateVersionStatus.PUBLISHED) {
-      throw new BadRequestException('Only published versions can be used for final generation');
+      throw new DomainException(
+        'Only published versions can be used for final generation',
+        ErrorCode.FORBIDDEN_ACTION
+      );
     }
 
     if (version.template.publishedVersionId !== versionId) {
-      throw new BadRequestException('This version is not the current published version for this template');
+      throw new DomainException(
+        'This version is not the current published version for this template',
+        ErrorCode.FORBIDDEN_ACTION
+      );
     }
 
     // 3. Verify case exists if caseId is provided
     if (caseId) {
       await this.casesService.getCaseData(caseId);
     } else if (!customVariables) {
-      throw new BadRequestException('Either caseId or customVariables must be provided');
+      throw new DomainException(
+        'Either caseId or customVariables must be provided',
+        ErrorCode.INCOMPLETE_CASE_DATA
+      );
     }
 
     // 4. Create GeneratedDocument record and enqueue job
@@ -246,7 +282,10 @@ export class TemplateVersionsService {
     const version = await this.findById(templateId, versionId);
 
     if (version.status === TemplateVersionStatus.ARCHIVED) {
-      throw new BadRequestException('Cannot publish an archived version');
+      throw new DomainException(
+        'Cannot publish an archived version',
+        ErrorCode.FORBIDDEN_ACTION
+      );
     }
 
     if (version.status === TemplateVersionStatus.PUBLISHED) {

@@ -13,6 +13,7 @@ export const envSchema = z.object({
   S3_ACCESS_KEY: z.string(),
   S3_SECRET_KEY: z.string(),
   S3_BUCKET: z.string(),
+  GEMINI_API_KEY: z.string().optional(),
   APP_URL: z.string().url().optional(),
 });
 

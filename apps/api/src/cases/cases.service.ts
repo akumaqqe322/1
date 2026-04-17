@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { CaseData, GenerationContext } from '@app/shared';
+import { DomainException, ErrorCode } from '../common/exceptions/domain-exception';
 
 /**
  * Interface representing the raw data format from the external "Project 2.0" database.
@@ -143,7 +144,11 @@ export class CasesService {
   async getCaseData(caseId: string): Promise<CaseData> {
     const raw = this.project2Source.find((c) => c.internal_id === caseId);
     if (!raw) {
-      throw new NotFoundException(`Case with ID ${caseId} not found in Project 2.0`);
+      throw new DomainException(
+        `Case with ID ${caseId} not found in Project 2.0`,
+        ErrorCode.CASE_NOT_FOUND,
+        HttpStatus.NOT_FOUND
+      );
     }
     return this.mapToInternal(raw);
   }
@@ -151,7 +156,11 @@ export class CasesService {
   async getGenerationContext(caseId: string): Promise<GenerationContext> {
     const raw = this.project2Source.find((c) => c.internal_id === caseId);
     if (!raw) {
-      throw new NotFoundException(`Case with ID ${caseId} not found in Project 2.0`);
+      throw new DomainException(
+        `Case with ID ${caseId} not found in Project 2.0`,
+        ErrorCode.CASE_NOT_FOUND,
+        HttpStatus.NOT_FOUND
+      );
     }
     return this.mapToGenerationContext(raw);
   }
