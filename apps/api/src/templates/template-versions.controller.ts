@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, Param, UsePipes, ValidationPipe, UseInterceptors, UploadedFile, ParseFilePipe, FileTypeValidator, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiSecurity, ApiParam, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { TemplateVersionsService } from './template-versions.service';
 import { CreateTemplateVersionDto } from './dto/create-template-version.dto';
@@ -8,6 +9,8 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { User } from '../auth/user.decorator';
 
+@ApiTags('Templates')
+@ApiSecurity('x-user-id')
 @Controller('templates/:templateId/versions')
 @UseGuards(RolesGuard)
 @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
@@ -16,6 +19,9 @@ export class TemplateVersionsController {
 
   @Post()
   @Roles('admin', 'lawyer')
+  @ApiOperation({ summary: 'Create a new version for a template' })
+  @ApiParam({ name: 'templateId', description: 'Template UUID' })
+  @ApiResponse({ status: 201, description: 'Version draft created' })
   create(
     @Param('templateId') templateId: string,
     @Body() dto: CreateTemplateVersionDto,
@@ -25,11 +31,18 @@ export class TemplateVersionsController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'List all versions of a specific template' })
+  @ApiParam({ name: 'templateId', description: 'Template UUID' })
+  @ApiResponse({ status: 200, description: 'List of versions' })
   findAll(@Param('templateId') templateId: string) {
     return this.versionsService.findAll(templateId);
   }
 
   @Get(':versionId')
+  @ApiOperation({ summary: 'Get details of a specific version' })
+  @ApiParam({ name: 'templateId', description: 'Template UUID' })
+  @ApiParam({ name: 'versionId', description: 'Version UUID' })
+  @ApiResponse({ status: 200, description: 'Version details' })
   findOne(
     @Param('templateId') templateId: string,
     @Param('versionId') versionId: string,
@@ -40,6 +53,18 @@ export class TemplateVersionsController {
   @Post(':versionId/file')
   @Roles('admin', 'lawyer')
   @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload a DOCX file to a version' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary', description: 'DOCX file' }
+      }
+    }
+  })
+  @ApiParam({ name: 'templateId', description: 'Template UUID' })
+  @ApiParam({ name: 'versionId', description: 'Version UUID' })
   uploadFile(
     @Param('templateId') templateId: string,
     @Param('versionId') versionId: string,
@@ -58,6 +83,8 @@ export class TemplateVersionsController {
 
   @Post(':versionId/preview')
   @Roles('admin', 'lawyer')
+  @ApiOperation({ summary: 'Generate a preview document' })
+  @ApiResponse({ status: 202, description: 'Preview generation job queued' })
   generatePreview(
     @Param('templateId') templateId: string,
     @Param('versionId') versionId: string,
@@ -69,6 +96,8 @@ export class TemplateVersionsController {
 
   @Post(':versionId/generate')
   @Roles('admin', 'lawyer')
+  @ApiOperation({ summary: 'Generate a final document' })
+  @ApiResponse({ status: 202, description: 'Document generation job queued' })
   generateFinal(
     @Param('templateId') templateId: string,
     @Param('versionId') versionId: string,
@@ -80,6 +109,8 @@ export class TemplateVersionsController {
 
   @Post(':versionId/publish')
   @Roles('admin', 'lawyer')
+  @ApiOperation({ summary: 'Publish a version' })
+  @ApiResponse({ status: 200, description: 'Version published successfully' })
   publish(
     @Param('templateId') templateId: string,
     @Param('versionId') versionId: string,
@@ -90,6 +121,8 @@ export class TemplateVersionsController {
 
   @Post(':versionId/archive')
   @Roles('admin', 'lawyer')
+  @ApiOperation({ summary: 'Archive a version' })
+  @ApiResponse({ status: 200, description: 'Version archived successfully' })
   archive(
     @Param('templateId') templateId: string,
     @Param('versionId') versionId: string,
@@ -99,6 +132,8 @@ export class TemplateVersionsController {
   }
 
   @Get(':versionId/documents')
+  @ApiOperation({ summary: 'List all documents generated from this version' })
+  @ApiResponse({ status: 200, description: 'List of generation results' })
   findDocuments(
     @Param('templateId') templateId: string,
     @Param('versionId') versionId: string,
