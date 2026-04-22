@@ -9,96 +9,63 @@ Cassatix is currently in a **functional prototype phase**. While it implements t
 
 ---
 
-## 🛑 The Problem
-Modern legal teams struggle with:
-- **Template Drifting**: Inconsistent versions of "standard" contracts across different lawyer's local drives.
-- **Manual Data Entry Errors**: Copy-pasting client info from case files into Word docs leads to costly typos.
-- **Governance Gaps**: Who generated what version of which NDA for which client?
+## 📑 Documentation Index
+
+Follow these guides to explore the system in depth:
+
+### 🚀 Getting Started
+- **[Demo & Testing Flow](./docs/demo-flow.md)**: A step-by-step walkthrough for reviewers.
+- **[Contributing Guide](./docs/contributing.md)**: Standards for repository hygiene and development.
+
+### 🏗 Technical Deep Dives
+- **[Architecture Overview](./docs/architecture.md)**: Services, job orchestration, and infrastructure.
+- **[Data Model](./docs/data-model.md)**: Relational entities and domain boundaries.
+- **[API Overview](./docs/api-overview.md)**: REST endpoint documentation and security model.
+
+### ⚠️ Reality Check
+- **[Known Issues & Limitations](./docs/known-issues.md)**: Honest assessment of the current prototype.
+
+---
 
 ## ✨ Main Features
 
 ### 📄 Template Lifecycle Management
 *   **Segmented Versions**: Manage templates through `DRAFT`, `PUBLISHED`, and `ARCHIVED` statuses.
 *   **One-Way Promotion**: Only "PUBLISHED" versions are available for final document production, preventing draft leaking.
-*   **Schema Validation**: Automated checks for `.docx` placeholders (e.g., `{{client_name}}`) ensure compatibility before publication.
+*   **Safety Gate**: Immutable versioning prevents retrospective changes from affecting historical records.
 
 ### ⚡️ Automated Document Generation
-*   **AI Extraction Layer**: Upload raw notes or unstructured client PDFs; our LLM-powered engine (Gemini) extracts structured entity data to populate templates.
-*   **Case-Link Sourcing**: One-click generation by pulling real-time data from internal case management systems (simulated Project 2.0 source).
+*   **AI Extraction Layer**: Upload raw client notes; Gemini AI extracts structured entities to populate templates.
+*   **Project 2.0 Integration**: Simulated real-time sourcing from case management data.
 *   **Background Assembly**: Distributed workers process intensive `.docx` assembly and `.pdf` conversions without blocking the UI.
 
-### 🔐 Security & Governance
+### 🛡 Security & Governance
 *   **Role-Based Access Control (RBAC)**: Distinct permissions for `Admin`, `Lawyer`, and `Partner` roles.
 *   **Full Audit Trail**: Every generation event and template modification is logged with actor metadata.
-*   **Swagger Documentation**: Fully explored and testable API at `/api/docs`.
 
 ---
 
-## 🏗 Architecture Summary
+## 🏗 High-Level Architecture
 
 Cassatix is a distributed full-stack application built for performance and maintainability:
-
-- **Frontend**: React 19 SPA + Vite + Tailwind CSS 4 + shadcn/ui. Handles reactive state with TanStack Query.
-- **Backend API**: NestJS (TypeScript) gateway. Manages business logic, RBAC, and job orchestration.
-- **Background Worker**: A headless Node.js service dedicated to document assembly and format conversion.
-- **Persistence**: PostgreSQL (via Prisma ORM) for relational state.
-- **Message Broker**: Redis (via BullMQ) for asynchronous generation job queuing.
-- **Object Storage**: S3-compatible storage (MinIO/AWS S3) for template drafts and final artifacts.
-- **Intelligence**: Google Gemini API for structured data extraction.
+- **Frontend**: React 19 SPA + Vite + Tailwind CSS + shadcn/ui.
+- **Backend API**: NestJS (TypeScript) gateway.
+- **Background Worker**: A headless Node.js service dedicated to document assembly.
+- **Data Persistence**: PostgreSQL (Relational), Redis (Queues), S3 (Artifacts).
 
 ---
 
-## 🔄 Core User Flow
-
-1.  **Drafting**: A **Lawyer** creates a Template Version and uploads a `.docx` with standard delimiters.
-2.  **Publication**: An **Admin** reviews and Publishes the version, locking it for production use.
-3.  **Extraction**: A user uploads a raw case note; AI extracts the `party_name` and `effective_date`.
-4.  **Generation**: The system queues a "Final" generation job using the extraction context.
-5.  **Completion**: The **Worker** generates the file, stores it in S3, and notifies the API.
-6.  **Review**: The user downloads the finished, formatted `.pdf` directly from the UI.
-
----
-
-## 👥 Role Model
-
-| Role | Permissions | Use Case |
-| :--- | :--- | :--- |
-| **Admin** | Full system access, audit logs, user management. | Managing firm-wide standards. |
-| **Lawyer** | Template CRUD, Generation, Previewing. | Drafting and testing new legal instruments. |
-| **Partner** | Generation, Document retrieval. | Production of client-ready assets from mature templates. |
-
----
-
-## 🧪 Demo & Testing Scenario
-
-To explore the system without a full identity provider setup:
-
-1.  **Start the Stack**: Run `npm install`, setup infra, and `npm run dev`.
-2.  **Access API Docs**: Open `http://localhost:3001/api/docs`.
-3.  **Authorize**: Click "Authorize" and enter `user-admin-1` in the `x-user-id` header field.
-4.  **Verify Identity**: Test the `GET /users/me` endpoint to see your simulated role and firm info.
-5.  **Follow the Flow**: Try listing templates, then generate a PDF for `case-123`.
-
----
-
-## ⚠️ Known Limitations & Constraints
-
--   **Mock Identity**: Authentication is simulated via headers. Production deployment requires migrating `RolesGuard` to an OIDC/JWT provider.
--   **Case Sourcing**: The "Project 2.0" case source is currently a simulated service within the worker.
--   **S3 Requirement**: Generation will fail if an S3-compatible service (like MinIO) is not reachable.
--   **LibreOffice Dependency**: PDF conversion requires `libreoffice` binaries on the Worker environment.
-
----
-
-## 🚀 Setup & Local Development
-
-Reference the detailed instructions in the [Deployment Guide](./DEMO_GUIDE.md) if you are setting up the infrastructure from scratch.
+## 🚀 Quick Setup
 
 ```bash
-# Quick Start
+# Install dependencies
 npm install
+
+# Setup database
 npx prisma migrate dev
 npx prisma db seed
+
+# Start development environment
 npm run dev
 ```
 
